@@ -1,0 +1,100 @@
+{
+    "name": "unnovatebrains/document-builder",
+    "description": "A Laravel document building framework for generating PDF, Word, Excel, and CSV documents through a unified pipeline API.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "document",
+        "document-builder",
+        "pdf",
+        "word",
+        "excel",
+        "csv",
+        "reporting",
+        "export",
+        "queue",
+        "pipeline"
+    ],
+    "authors": [
+        {
+            "name": "Unnovate Brains Co. Ltd",
+            "email": "opensource@unnovatebrains.com",
+            "homepage": "https://unnovatebrains.com",
+            "role": "Developer"
+        }
+    ],
+    "homepage": "https://github.com/UnnovateBrains/document-builder",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/UnnovateBrains/document-builder.git"
+    },
+    "support": {
+        "issues": "https://github.com/UnnovateBrains/document-builder/issues"
+    },
+    "require": {
+        "php": "^8.2",
+        "illuminate/contracts": "^11.0|^12.0",
+        "illuminate/support": "^11.0|^12.0",
+        "mpdf/mpdf": "^8.3",
+        "setasign/fpdf": "^1.9"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.13",
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^11.0",
+        "mockery/mockery": "^1.6",
+        "pestphp/pest": "^3.8",
+        "pestphp/pest-plugin-laravel": "^3.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "UnnovateBrains\\DocumentBuilder\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "UnnovateBrains\\DocumentBuilder\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "UnnovateBrains\\DocumentBuilder\\DocumentBuilderServiceProvider"
+            ],
+            "aliases": {
+                "Document": "UnnovateBrains\\DocumentBuilder\\Facades\\Document"
+            }
+        }
+    },
+    "scripts": {
+        "test": [
+            "@php artisan test"
+        ],
+        "lint": [
+            "./vendor/bin/pint"
+        ],
+        "post-autoload-dump": [
+            "@clear",
+            "@prepare"
+        ],
+        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "build": "@php vendor/bin/testbench workbench:build --ansi",
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench serve --ansi"
+        ]
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
