@@ -1,5 +1,5 @@
 {
-    "name": "unnovatebrains/document-builder",
+    "name": "schoolpalm/document-builder",
     "description": "A Laravel document building framework for generating PDF, Word, Excel, and CSV documents through a unified pipeline API.",
     "type": "library",
     "license": "MIT",

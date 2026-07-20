@@ -18,7 +18,7 @@ final class ExecutionPlan
         private readonly array $viewData,
         public readonly ?string $outputPath = null,
         private readonly ?int $chunkSize,
-        private readonly bool $shouldMerge,
+        private readonly ?bool $shouldMerge,
         private readonly ?string $outputFilename,
         private readonly ?string $disk,
         private readonly bool $shouldQueue,
@@ -92,7 +92,7 @@ final class ExecutionPlan
         return $this->chunkSize;
     }
 
-    public function shouldMerge(): bool
+    public function shouldMerge(): ?bool
     {
         return $this->shouldMerge;
     }

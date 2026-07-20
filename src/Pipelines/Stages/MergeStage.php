@@ -12,6 +12,7 @@ use UnnovateBrains\DocumentBuilder\Merge\DocumentMergerManager;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineStage;
 use UnnovateBrains\DocumentBuilder\Support\DocumentExecutionMetadata;
+use UnnovateBrains\DocumentBuilder\Support\DocumentMetadata;
 use UnnovateBrains\DocumentBuilder\Support\DocumentResult;
 use UnnovateBrains\DocumentBuilder\Support\FileContent;
 
@@ -251,7 +252,7 @@ final class MergeStage implements PipelineStage
                 ),
                 type: $plan->getType(),
                 filename: $filename,
-                metadata: $plan->getMetadata()->toArray()
+                metadata: $plan->getMetadata()?->toArray() ?? []
             );
 
 
@@ -267,7 +268,7 @@ final class MergeStage implements PipelineStage
                 content: $content,
                 path: $outputPath,
                 filename: $filename,
-                metadata: $plan->getMetadata(),
+                metadata: $plan->getMetadata() ?? new DocumentMetadata([]),
                 type: $plan->getType()
             );
 
