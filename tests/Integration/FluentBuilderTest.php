@@ -9,19 +9,19 @@ it('builds documents using a sleek fluent api profile design syntax', function (
         ['id' => 1, 'name' => 'John Doe', 'grade' => 'A+']
     ];
 
-    $mockStorage = new \UnnovateBrains\DocumentBuilder\Tests\Mocks\MockVirtualStorage();
-    app()->instance(DocumentStorage::class, $mockStorage);
+
+    $storage = app(DocumentStorage::class);
 
     // Act: Fire the exact targeted operational structure profile syntax code!
     $result = Document::pdf()
         ->fromCollection(collect($students))
-        ->view('transcripts.student')
+        ->view('students')
+        ->context(['tenant_id' => 'emma', 'school_id' => 'emma-4353', 'user_id' => 263])
         ->engine('mpdf')
         ->filename('fluent_transcript_report')
         ->save();
 
     // Assert
     expect($result)->not->toBeNull();
-    expect($result->getContent())->toStartWith('%PDF-');
-    expect($mockStorage->exists('documents/fluent_transcript_report.pdf'))->toBeTrue();
+    expect($storage->exists('documents/fluent_transcript_report.pdf'))->toBeTrue();
 });

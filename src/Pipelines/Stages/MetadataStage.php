@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder\Pipelines\Stages;
 
 use Closure;
+use SchoolPalm\AppLogger\Context\AppContext;
+use SchoolPalm\AppLogger\Facades\AppLogger;
+use Throwable;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineStage;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 
@@ -35,17 +38,33 @@ final class MetadataStage implements PipelineStage
         Closure $next
     ): mixed {
 
-        $result = $context->getResult();
+        try {
+
+            $result = $context->getResult();
 
 
-        if ($result !== null) {
+            if ($result !== null) {
 
-            $result->getMetadata()->merge([
-                'completed_at' => now()->toDateTimeString(),
-                'memory_peak'  => memory_get_peak_usage(true),
-            ]);
+                $result->getMetadata()->merge([
+                    'completed_at' => now()->toDateTimeString(),
+                    'memory_peak'  => memory_get_peak_usage(true),
+                ]);
+            }
+
+        } catch (Throwable $e) {
+
+            AppLogger::channel('document-builder')->error(
+                'Failed to enrich document metadata',
+                new AppContext($context->getPlan()->getContext()),
+                [
+                    'stage' => 'MetadataStage',
+                    'document_type' => $context->getPlan()->getType(),
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            throw $e;
         }
-
 
         return $next($context);
     }

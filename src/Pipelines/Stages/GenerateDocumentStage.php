@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder\Pipelines\Stages;
 
 use Closure;
+use SchoolPalm\AppLogger\Context\AppContext;
+use SchoolPalm\AppLogger\Facades\AppLogger;
+use Throwable;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentStorage;
 use UnnovateBrains\DocumentBuilder\Services\DocumentGenerator;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineStage;
@@ -20,7 +23,6 @@ final class GenerateDocumentStage implements PipelineStage
         private readonly DocumentGenerator $generator,
         private readonly DocumentStorage $storage
     ) {}
-
 
     /**
      * Generates the final document for standard execution.
@@ -44,107 +46,122 @@ final class GenerateDocumentStage implements PipelineStage
         Closure $next
     ): mixed {
 
-        /*
-        |--------------------------------------------------------------------------
-        | Skip chunk execution
-        |--------------------------------------------------------------------------
-        |
-        | Chunk workers generate fragments.
-        | MergeStage creates the final artifact.
-        |
-        */
-        if ($context->isBatchExecution()) {
-            return $next($context);
-        }
+        try {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Skip chunk execution
+            |--------------------------------------------------------------------------
+            |
+            | Chunk workers generate fragments.
+            | MergeStage creates the final artifact.
+            |
+            */
+            if ($context->isBatchExecution()) {
+                return $next($context);
+            }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Generate document artifact
-        |--------------------------------------------------------------------------
-        */
-        $generated = $this->generator->generate(
-            $context
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Normalize generated content
-        |--------------------------------------------------------------------------
-        |
-        | Drivers may return:
-        |
-        | - DocumentContent
-        | - Raw binary strings (legacy drivers)
-        |
-        */
-        if ($generated instanceof DocumentContent) {
-
-            $content = $generated;
-        } else {
-
-            $content = new StringContent(
-                (string) $generated
+            /*
+            |--------------------------------------------------------------------------
+            | Generate document artifact
+            |--------------------------------------------------------------------------
+            */
+            $generated = $this->generator->generate(
+                $context
             );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Normalize generated content
+            |--------------------------------------------------------------------------
+            |
+            | Drivers may return:
+            |
+            | - DocumentContent
+            | - Raw binary strings (legacy drivers)
+            |
+            */
+            if ($generated instanceof DocumentContent) {
+
+                $content = $generated;
+            } else {
+
+                $content = new StringContent(
+                    (string) $generated
+                );
+            }
+
+
+            $plan = $context->getPlan();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Resolve filename
+            |--------------------------------------------------------------------------
+            */
+            $filename = $plan->getOutputFilename()
+                ?? 'document';
+
+
+            if (!str_ends_with(
+                strtolower($filename),
+                '.' . $plan->getType()
+            )) {
+                $filename .= '.' . $plan->getType();
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Resolve final storage path
+            |--------------------------------------------------------------------------
+            */
+            $path = $this->storage->resolvePath(
+                $plan->getOutputPath()
+                    ?? 'documents/' . $filename
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create final document result
+            |--------------------------------------------------------------------------
+            */
+            $result = new DocumentResult(
+                content: $content,
+                path: $path,
+                filename: $filename,
+                type: $plan->getType(),
+                metadata: $plan->getMetadata()
+            );
+
+            DocumentExecutionMetadata::append(
+                $result,
+                $plan,
+                $context,
+                $filename
+            );
+
+            $context->setResult(
+                $result
+            );
+        } catch (Throwable $e) {
+
+            AppLogger::channel('document-builder')->error(
+                'Failed to generate document',
+                new AppContext($context->getPlan()->getContext()),
+                [
+                    'stage' => 'GenerateDocumentStage',
+                    'document_type' => $context->getPlan()->getType(),
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            throw $e;
         }
-
-
-        $plan = $context->getPlan();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Resolve filename
-        |--------------------------------------------------------------------------
-        */
-        $filename = $plan->getOutputFilename()
-            ?? 'document';
-
-
-        if (!str_ends_with(
-            strtolower($filename),
-            '.' . $plan->getType()
-        )) {
-            $filename .= '.' . $plan->getType();
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Resolve final storage path
-        |--------------------------------------------------------------------------
-        */
-        $path = $this->storage->resolvePath(
-            $plan->getOutputPath()
-                ?? 'documents/' . $filename
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Create final document result
-        |--------------------------------------------------------------------------
-        */
-        $result = new DocumentResult(
-            content: $content,
-            path: $path,
-            filename: $filename,
-            type: $plan->getType(),
-            metadata: $plan->getMetadata()
-        );
-
-        DocumentExecutionMetadata::append(
-            $result,
-            $plan,
-            $context,
-            $filename
-        );
-
-        $context->setResult(
-            $result
-        );
-
 
         return $next($context);
     }

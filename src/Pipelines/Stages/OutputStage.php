@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder\Pipelines\Stages;
 
 use Closure;
+use SchoolPalm\AppLogger\Context\AppContext;
+use SchoolPalm\AppLogger\Facades\AppLogger;
+use Throwable;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentStorage;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineStage;
@@ -21,127 +24,133 @@ final class OutputStage implements PipelineStage
     /**
      * Persist the completed document artifact.
      *
-     * This stage represents the final persistence boundary of the pipeline.
+     * Final pipeline boundary responsible for:
      *
-     * At this point:
-     *
-     * - Standard execution has generated a final DocumentResult.
-     * - Chunked execution has been merged into a final DocumentResult.
-     * - Queue execution has completed its document generation.
-     *
-     * Responsibilities:
-     *
-     * - Retrieve the final execution result.
-     * - Ignore incomplete or missing results.
-     * - Delegate document persistence to DocumentStorage.
-     *
-     * This stage does not:
-     *
-     * - Generate documents.
-     * - Render templates.
-     * - Merge document fragments.
-     * - Inspect document content types.
-     * - Handle filesystem implementation details.
-     *
-     * DocumentContent decides whether the artifact is:
-     *
-     * - An in-memory binary string.
-     * - A stream.
-     * - A generated file.
+     * - storing generated document content
+     * - normalizing stored paths
+     * - updating final DocumentResult
+     * - logging successful generation
      */
     public function handle(
         PipelineContext $context,
         Closure $next
     ): mixed {
 
+        try {
 
-        $result = $context->getResult();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | No generated artifact
-        |--------------------------------------------------------------------------
-        */
-        if ($result === null) {
-            return $next($context);
-        }
+            $result = $context->getResult();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Ignore incomplete executions
-        |--------------------------------------------------------------------------
-        |
-        | Queue based executions may return a pending result.
-        | Permanent storage only happens after completion.
-        |
-        */
-        if (!$result->isComplete()) {
-            return $next($context);
-        }
+            /*
+            |--------------------------------------------------------------------------
+            | No generated artifact
+            |--------------------------------------------------------------------------
+            */
+            if ($result === null) {
+                return $next($context);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Ignore incomplete executions
+            |--------------------------------------------------------------------------
+            */
+            if (! $result->isComplete()) {
+                return $next($context);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Capture final metadata before replacing result
+            |--------------------------------------------------------------------------
+            */
+            $filename = $result->getFilename();
+
+            $type = $result->getType();
+
+            $metadata = $result->getMetadata();
 
 
 
-        /*
-|--------------------------------------------------------------------------
-| Persist final artifact
-|--------------------------------------------------------------------------
-|
-| Storage receives the content abstraction and decides how
-| to write it to the configured filesystem.
-|
-*/
-        $storedPath = $this->storage->putContent(
-            $result->getPath(),
-            $result->getContent()
-        );
+            /*
+            |--------------------------------------------------------------------------
+            | Persist final artifact
+            |--------------------------------------------------------------------------
+            */
+            $storedPath = $this->storage->putContent(
+                $result->getPath(),
+                $result->getContent()
+            );
 
 
-        /*
-|--------------------------------------------------------------------------
-| Normalize final result
-|--------------------------------------------------------------------------
-|
-| Storage may resolve the path differently:
-|
-| documents/report.pdf
-|
-| becomes:
-|
-| tenants/1/schools/5/documents/report.pdf
-|
-*/
-        if ($storedPath !== $result->getPath()) {
 
+            /*
+            |--------------------------------------------------------------------------
+            | Normalize final result
+            |--------------------------------------------------------------------------
+            |
+            | Storage may resolve a different physical path.
+            |
+            */
+            if ($storedPath !== $result->getPath()) {
 
-            $content =
-                new FileContent(
+                $content = new FileContent(
                     path: $this->storage->resolvePath(
                         $storedPath
                     ),
-                    type: $result->getType(),
-                    filename: $result->getFilename(),
-                    metadata: $result->getMetadata()->toArray()
+                    type: $type,
+                    filename: $filename,
+                    metadata: $metadata->toArray()
                 );
 
 
-
-            $result =
-                new DocumentResult(
+                $result = new DocumentResult(
                     content: $content,
                     path: $storedPath,
-                    filename: $result->getFilename(),
-                    type: $result->getType(),
-                    metadata: $result->getMetadata()
+                    filename: $filename,
+                    type: $type,
+                    metadata: $metadata
                 );
 
 
-            $context->setResult(
-                $result
-            );
-        }
+                $context->setResult(
+                    $result
+                );
+            }
 
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Log successful document generation
+            |--------------------------------------------------------------------------
+            */
+            AppLogger::channel('document-builder')
+                ->info(
+                    'Document generated successfully',
+                    new AppContext($context->getPlan()->getContext()),
+                    [
+                        'path' => $storedPath,
+                        'filename' => $filename,
+                        'type' => $type,
+                    ]
+                );
+        } catch (Throwable $e) {
+
+            AppLogger::channel('document-builder')->error(
+                'Failed to persist document output',
+                new AppContext($context->getPlan()->getContext()),
+                [
+                    'stage' => 'OutputStage',
+                    'document_type' => $context->getPlan()->getType(),
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            throw $e;
+        }
 
         return $next($context);
     }

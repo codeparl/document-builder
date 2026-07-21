@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder\Pipelines\Stages;
 
 use Closure;
+use SchoolPalm\AppLogger\Context\AppContext;
+use SchoolPalm\AppLogger\Facades\AppLogger;
+use Throwable;
 use UnnovateBrains\DocumentBuilder\Drivers\DriverManager;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineStage;
@@ -22,20 +25,38 @@ final class CompileDriverStage implements PipelineStage
         private readonly DriverManager $driverManager,
     ) {}
 
-    public function handle(
+    public function handle( 
         PipelineContext $context,
         Closure $next
     ): mixed {
 
-        $plan = $context->getPlan();
+        try {
 
-        $driver = $this->driverManager->driver(
-            $plan->getType(),
-            $plan->getEngine()
-        );
+            $plan = $context->getPlan();
 
-        $context->setDriver($driver);
-        $context->setEngine($driver->getEngineInstance());
+            $driver = $this->driverManager->driver(
+                $plan->getType(),
+                $plan->getEngine()
+            );
+
+            $context->setDriver($driver);
+            $context->setEngine($driver->getEngineInstance());
+
+        } catch (Throwable $e) {
+
+            AppLogger::channel('document-builder')->error(
+                'Failed to compile document driver',
+                new AppContext($context->getPlan()->getContext()),
+                [
+                    'stage' => 'CompileDriverStage',
+                    'document_type' => $context->getPlan()->getType(),
+                    'engine' => $context->getPlan()->getEngine(),
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            throw $e;
+        }
 
         return $next($context);
     }

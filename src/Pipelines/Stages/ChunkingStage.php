@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder\Pipelines\Stages;
 
 use Closure;
+use SchoolPalm\AppLogger\Context\AppContext;
+use SchoolPalm\AppLogger\Facades\AppLogger;
+use Throwable;
 use UnnovateBrains\DocumentBuilder\Chunking\ChunkExecutorManager;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineStage;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
@@ -21,49 +24,65 @@ final class ChunkingStage implements PipelineStage
         Closure $next
     ): mixed {
 
-        $plan = $context->getPlan();
+        try {
+
+            $plan = $context->getPlan();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | No chunking requested
-        |--------------------------------------------------------------------------
-        */
-        if (!$plan->getChunkSize()) {
-            return $next($context);
+            /*
+            |--------------------------------------------------------------------------
+            | No chunking requested
+            |--------------------------------------------------------------------------
+            */
+            if (!$plan->getChunkSize()) {
+                return $next($context);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Split records into chunks
+            |--------------------------------------------------------------------------
+            */
+
+            $chunks = $this->chunk(
+                $context->getRecords(),
+                $plan->getChunkSize()
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Resolve execution strategy
+            |--------------------------------------------------------------------------
+            |
+            | Examples:
+            | sync  -> process immediately
+            | queue -> dispatch workers
+            |
+            */
+
+            return $this->executorManager->execute(
+                $plan->getChunkExecutor(),
+                $context,
+                $chunks,
+                $next
+            );
+        } catch (Throwable $e) {
+
+            AppLogger::channel('document-builder')->error(
+                'Failed to execute chunking stage',
+                new AppContext($context->getPlan()->getContext()),
+                [
+                    'stage' => 'ChunkingStage',
+                    'document_type' => $context->getPlan()->getType(),
+                    'chunk_size' => $context->getPlan()->getChunkSize(),
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            throw $e;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Split records into chunks
-        |--------------------------------------------------------------------------
-        */
-
-        $chunks = $this->chunk(
-            $context->getRecords(),
-            $plan->getChunkSize()
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Resolve execution strategy
-        |--------------------------------------------------------------------------
-        |
-        | Examples:
-        | sync  -> process immediately
-        | queue -> dispatch workers
-        |
-        */
-
-        return $this->executorManager->execute(
-            $plan->getChunkExecutor(),
-            $context,
-            $chunks,
-            $next
-        );
     }
-
 
 
     /**

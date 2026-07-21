@@ -37,8 +37,11 @@
         "illuminate/contracts": "^11.0|^12.0",
         "illuminate/support": "^11.0|^12.0",
         "mpdf/mpdf": "^8.3",
-        "setasign/fpdf": "^1.9"
+        "setasign/fpdf": "^1.9",
+        "schoolpalm/app-logger": "^1.0"
+
     },
+ 
     "require-dev": {
         "laravel/pint": "^1.13",
         "orchestra/testbench": "^9.0|^10.0",
@@ -96,5 +99,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true
         }
+    },
+    
+    "suggest": {
+        "schoolpalm/app-logger": "Enable contextual document generation logging"
     }
 }

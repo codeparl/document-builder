@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder\Pipelines\Stages;
 
 use Closure;
+use SchoolPalm\AppLogger\Context\AppContext;
+use SchoolPalm\AppLogger\Facades\AppLogger;
+use Throwable;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineStage;
 use UnnovateBrains\DocumentBuilder\Services\DocumentTransformer;
@@ -34,27 +37,45 @@ final class TransformStage implements PipelineStage
         Closure $next
     ): mixed {
 
-       if ($context->isBatchExecution()) {
-        return $next($context);
-    }
-        $records = $context->getRecords();
+        try {
 
-        if (!is_iterable($records)) {
-            return $next($context);
-        }
+            if ($context->isBatchExecution()) {
+                return $next($context);
+            }
+
+            $records = $context->getRecords();
+
+            if (!is_iterable($records)) {
+                return $next($context);
+            }
 
 
-        $transformed =
-            $this->transformer->apply(
-                $records,
-                $context->getPlan()->getTransformers(),
-                $context
+            $transformed =
+                $this->transformer->apply(
+                    $records,
+                    $context->getPlan()->getTransformers(),
+                    $context
+                );
+
+
+            $context->setRecords(
+                $transformed
             );
 
+        } catch (Throwable $e) {
 
-        $context->setRecords(
-            $transformed
-        );
+            AppLogger::channel('document-builder')->error(
+                'Failed to transform document records',
+                new AppContext($context->getPlan()->getContext()),
+                [
+                    'stage' => 'TransformStage',
+                    'document_type' => $context->getPlan()->getType(),
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            throw $e;
+        }
 
         return $next($context);
     }
