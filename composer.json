@@ -38,7 +38,8 @@
         "illuminate/support": "^11.0|^12.0",
         "mpdf/mpdf": "^8.3",
         "setasign/fpdf": "^1.9",
-        "schoolpalm/app-logger": "^1.0"
+        "schoolpalm/app-logger": "^1.0",
+        "phpoffice/phpspreadsheet": "^5.9"
 
     },
  

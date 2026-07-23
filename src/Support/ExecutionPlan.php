@@ -25,14 +25,61 @@ final class ExecutionPlan
         private readonly ?DocumentMetadata $metadata = null,
         private readonly array $context = [],
         private array $driverConfig = [
-            'margin_left' => 15,
-            'margin_right' => 15,
-            'margin_top' => 16,
-            'margin_bottom' => 16,
+            'pdf' => [
+                'page_size' => null,
+                'orientation' => null,
+                'margins' => [
+                    'margin_left' => 15,
+                    'margin_right' => 15,
+                    'margin_top' => 16,
+                    'margin_bottom' => 16,
+                ],
+                'header' => false,
+                'footer' => false,
+                'header_content' => null,
+                'footer_content' => null,
+                'watermark' => null,
+                'metadata' => [],
+            ],
+
+            'xlsx' => [
+                'sheet' => null,
+                'columns' => [],
+                'headers' => true,
+                'auto_size' => false,
+                'freeze_header' => false,
+                'filters' => false,
+            ],
+
+            'csv' => [
+                'delimiter' => ',',
+                'enclosure' => '"',
+                'encoding' => 'UTF-8',
+            ],
+
+            'docx' => [
+                'styles' => [],
+                'headers' => [],
+                'footers' => [],
+            ],
+
+            'html' => [
+                'css' => null,
+            ],
+
+            'image' => [
+                'width' => null,
+                'height' => null,
+                'quality' => null,
+            ]
         ],
+
+
         private array $transformers = [],
+        protected array $excelConfig = []
 
     ) {}
+
 
     public function getChunkExecutor(): string
     {
@@ -48,9 +95,67 @@ final class ExecutionPlan
         return $this;
     }
 
+    /**
+     * Get PDF driver configuration.
+     */
+    public function getPdfConfig(): array
+    {
+        return $this->driverConfig['pdf'] ?? [];
+    }
+
+
+    /**
+     * Get Excel/XLSX driver configuration.
+     */
+    public function getExcelConfig(): array
+    {
+        return $this->driverConfig['xlsx'] ?? [];
+    }
+
+
+    /**
+     * Get CSV driver configuration.
+     */
+    public function getCsvConfig(): array
+    {
+        return $this->driverConfig['csv'] ?? [];
+    }
+
+
+    /**
+     * Get Word/DOCX driver configuration.
+     */
+    public function getWordConfig(): array
+    {
+        return $this->driverConfig['docx'] ?? [];
+    }
+
+
+    /**
+     * Get HTML driver configuration.
+     */
+    public function getHtmlConfig(): array
+    {
+        return $this->driverConfig['html'] ?? [];
+    }
+
+
+    /**
+     * Get image driver configuration.
+     */
+    public function getImageConfig(): array
+    {
+        return $this->driverConfig['image'] ?? [];
+    }
+
+
+
+
+
+
     public function getDriverConfig(): array
     {
-        return $this->driverConfig;
+        return $this->excelConfig;
     }
 
     public function getType(): string

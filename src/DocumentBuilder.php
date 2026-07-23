@@ -6,6 +6,9 @@ namespace UnnovateBrains\DocumentBuilder;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use UnnovateBrains\DocumentBuilder\Concerns\ExcelBuilderConcern;
+use UnnovateBrains\DocumentBuilder\Concerns\ExcelBuilderTrait;
+use UnnovateBrains\DocumentBuilder\Concerns\PdfBuilderTrait;
 use UnnovateBrains\DocumentBuilder\Contracts\Source;
 use UnnovateBrains\DocumentBuilder\Services\DocumentTransformer;
 use UnnovateBrains\DocumentBuilder\Sources\ArraySource;
@@ -23,9 +26,13 @@ use UnnovateBrains\DocumentBuilder\Support\SourceRegistry;
  *
  * @package UnnovateBrains\DocumentBuilder
  */
+
 class DocumentBuilder
 {
-    protected ?string $engine = null;
+
+    use ExcelBuilderTrait;
+    use PdfBuilderTrait;
+
     protected ?Source $source = null;
     protected ?string $view = null;
     protected ?string $templateEngine = 'blade';
@@ -34,6 +41,7 @@ class DocumentBuilder
     protected ?string $filename = null;
     protected ?string $disk = null;
     protected ?int $chunkSize = null;
+    protected array $options = [];
     /**
      * Merge behaviour:
      *
@@ -48,17 +56,42 @@ class DocumentBuilder
     protected ?bool $shouldQueue = null;
 
     protected ?string $outputPath = null;
-    protected array $driverConfig = [];
     protected array $context = [];
     protected array $transformers = [];
     protected DocumentManager $manager;
-
+    /**
+     * Driver specific configuration.
+     *
+     * Example:
+     *
+     * [
+     *     'pdf' => [
+     *          'orientation' => 'landscape'
+     *     ],
+     *
+     *     'xlsx' => [
+     *          'auto_size' => true
+     *     ]
+     * ]
+     */
+    protected array $driverConfig = [];
+    /**
+     * @param string $type Document format type.
+     * @param string $engine Default resolved engine for the document type.
+     *
+     * The engine is resolved from configuration by the facade,
+     * but developers may override it using ->engine().
+     */
     public function __construct(
         protected string $type,
+        protected string $engine,
         ?DocumentManager $manager = null
     ) {
-        $this->manager = $manager ?? app(DocumentManager::class);
-        $this->metadata = new DocumentMetadata();
+        $this->manager =
+            $manager ?? app(DocumentManager::class);
+
+        $this->metadata =
+            new DocumentMetadata();
     }
 
     /**
@@ -70,6 +103,33 @@ class DocumentBuilder
         $clone->engine = $engine;
         return $clone;
     }
+
+    public function option(
+        string $key,
+        mixed $value
+    ): self {
+
+        $clone = clone $this;
+
+        $clone->options[$key] = $value;
+
+        return $clone;
+    }
+
+    public function options(
+        array $options
+    ): self {
+
+        $clone = clone $this;
+
+        $clone->options = array_merge(
+            $clone->options,
+            $options
+        );
+
+        return $clone;
+    }
+
 
     /**
      * Attach execution context information.
@@ -395,7 +455,7 @@ class DocumentBuilder
             metadata: $this->metadata,
             driverConfig: $this->driverConfig,
             context: $this->context,
-            transformers: $this->transformers
+            transformers: $this->transformers,
         );
     }
 
@@ -405,7 +465,74 @@ class DocumentBuilder
     public function driverConfig(array $config): self
     {
         $clone = clone $this;
-        $clone->driverConfig = array_merge($clone->driverConfig, $config);
+
+
+        $clone->driverConfig[$this->type] =
+            array_merge(
+                $clone->driverConfig[$this->type] ?? [],
+                $config
+            );
+
+
+        return $clone;
+    }
+
+    public function getDriverConfig(): array
+    {
+        return $this->driverConfig[$this->type] ?? [];
+    }
+
+
+    /**
+     * Set a single driver-specific option.
+     *
+     * Example:
+     *
+     * ->setDriverOption('xlsx', 'auto_size', true)
+     */
+    public function setDriverOption(
+        string $driver,
+        string $key,
+        mixed $value
+    ): self {
+
+        $clone = clone $this;
+
+
+        $clone->driverConfig[$driver][$key] =
+            $value;
+
+
+        return $clone;
+    }
+
+
+
+    /**
+     * Merge multiple driver-specific options.
+     *
+     * Example:
+     *
+     * ->setDriverOptions('xlsx', [
+     *     'auto_size'=>true,
+     *     'creator'=>'SchoolPalm'
+     * ])
+     */
+    public function setDriverOptions(
+        string $driver,
+        array $options
+    ): self {
+
+        $clone = clone $this;
+
+
+        $clone->driverConfig[$driver] =
+            array_merge(
+                $clone->driverConfig[$driver] ?? [],
+                $options
+            );
+
+
         return $clone;
     }
 

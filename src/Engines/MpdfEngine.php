@@ -7,91 +7,177 @@ namespace UnnovateBrains\DocumentBuilder\Engines;
 use Mpdf\Mpdf;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentContent;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentEngine;
+use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Support\ExecutionPlan;
 use UnnovateBrains\DocumentBuilder\Support\DocumentContentFactory;
 
 final class MpdfEngine implements DocumentEngine
 {
-    /**
-     * Inject the factory to safely broker the raw string binaries.
-     */
     public function __construct(
         private readonly DocumentContentFactory $factory
     ) {}
+
+
 
     public function name(): string
     {
         return 'mpdf';
     }
 
+
+
     public function type(): string
     {
         return 'pdf';
     }
 
-    /**
-     * Render HTML content into PDF document content.
-     */
+
+
     public function render(
         ExecutionPlan $plan,
-        string $content
+        string $content,
+        PipelineContext $context
     ): DocumentContent {
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Resolve only PDF configuration
+        |--------------------------------------------------------------------------
+        |
+        | Example:
+        |
+        | [
+        |    'page_size'=>'A4',
+        |    'orientation'=>'landscape'
+        | ]
+        |
+        */
+
+        $config =
+            $plan->getDriverConfig('pdf');
+
+
 
         /*
         |--------------------------------------------------------------------------
         | Initialize mPDF
         |--------------------------------------------------------------------------
         */
-        $mpdf = new Mpdf(
-            $plan->getDriverConfig()
-        );
+
+        $mpdf =
+            new Mpdf(
+                $this->resolveMpdfConfig(
+                    $config
+                )
+            );
+
+
 
         /*
         |--------------------------------------------------------------------------
         | Render HTML
         |--------------------------------------------------------------------------
         */
+
         $mpdf->WriteHTML(
             $content
         );
+
+
 
         /*
         |--------------------------------------------------------------------------
         | Generate PDF binary
         |--------------------------------------------------------------------------
         */
-        $binary = $mpdf->Output(
-            '',
-            \Mpdf\Output\Destination::STRING_RETURN
-        );
+
+        $binary =
+            $mpdf->Output(
+                '',
+                \Mpdf\Output\Destination::STRING_RETURN
+            );
+
+
 
         /*
         |--------------------------------------------------------------------------
-        | Delegate to Factory for Smart Content Wrapping
+        | Return document content
         |--------------------------------------------------------------------------
-        |
-        | Instead of blindly returning StringContent, we pass the execution properties.
-        | The factory will decide if it fits nicely in memory or needs to be downshifted 
-        | into an efficient StreamContent object automatically.
-        |
         */
+
         return $this->factory->make(
             content: $binary,
             type: $this->type(),
-            filename: $plan->getOutputFilename() ?? 'document.pdf',
-            metadata: $plan->getMetadata()->merge(
-                [
+            filename: ($plan->getOutputFilename() ?? 'document')
+                . '.pdf',
+
+            metadata: $plan->getMetadata()
+                ->merge([
                     'engine' => $this->name(),
                     'rendered_at' => date('c')
-                ]
-            )->toArray()
-
+                ])
+                ->toArray()
         );
     }
+
+
+
+    /**
+     * Resolve mPDF-specific configuration.
+     */
+    private function resolveMpdfConfig(
+        array $config
+    ): array {
+
+        $options = [];
+
+
+        if (isset($config['page_size'])) {
+
+            $options['format'] =
+                $config['page_size'];
+        }
+
+
+        if (isset($config['orientation'])) {
+
+            $options['orientation'] =
+                strtoupper(
+                    $config['orientation']
+                );
+        }
+
+
+        if (isset($config['margins'])) {
+
+            $margins =
+                $config['margins'];
+
+
+            $options['margin_top'] =
+                $margins['top'] ?? 10;
+
+            $options['margin_right'] =
+                $margins['right'] ?? 10;
+
+            $options['margin_bottom'] =
+                $margins['bottom'] ?? 10;
+
+            $options['margin_left'] =
+                $margins['left'] ?? 10;
+        }
+
+
+        return $options;
+    }
+
+
 
     public function supports(
         string $engine
     ): bool {
-        return $engine === 'mpdf';
+
+        return strtolower($engine) === $this->name();
     }
 }

@@ -61,7 +61,6 @@ final class TransformStage implements PipelineStage
             $context->setRecords(
                 $transformed
             );
-
         } catch (Throwable $e) {
 
             AppLogger::channel('document-builder')->error(

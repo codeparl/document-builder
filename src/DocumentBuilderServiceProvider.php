@@ -20,8 +20,11 @@ use UnnovateBrains\DocumentBuilder\Contracts\DocumentQueue;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentStorage;
 use UnnovateBrains\DocumentBuilder\Contracts\TemplateRenderer;
 use UnnovateBrains\DocumentBuilder\Drivers\DriverManager;
+use UnnovateBrains\DocumentBuilder\Drivers\Excel\PhpSpreadsheetDriver;
 use UnnovateBrains\DocumentBuilder\Drivers\Pdf\MpdfDriver; // Added
 use UnnovateBrains\DocumentBuilder\Engines\MpdfEngine;
+use UnnovateBrains\DocumentBuilder\Engines\PhpSpreadsheetEngine;
+use UnnovateBrains\DocumentBuilder\Merge\DefaultMerger;
 use UnnovateBrains\DocumentBuilder\Merge\DocumentMergerManager;
 use UnnovateBrains\DocumentBuilder\Merge\PdfMerger;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\DocumentPipeline;
@@ -261,16 +264,25 @@ final class DocumentBuilderServiceProvider extends ServiceProvider
             DriverManager::class
         );
 
+        //register document drivers and their engines 
+
         $driverManager->register(
             new MpdfDriver(
                 $this->app->make(MpdfEngine::class)
             )
         );
+
+        $driverManager->register(
+            new PhpSpreadsheetDriver(
+                $this->app->make(PhpSpreadsheetEngine::class)
+            )
+        );
+
         $this->app->singleton(
             DocumentMergerManager::class,
             function () {
 
-                $manager = new DocumentMergerManager();
+                $manager = new DocumentMergerManager(new DefaultMerger);
 
                 $manager->register(
                     'pdf',

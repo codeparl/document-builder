@@ -2,6 +2,7 @@
 
 namespace UnnovateBrains\DocumentBuilder\Contracts;
 
+use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Support\DocumentResult;
 use UnnovateBrains\DocumentBuilder\Support\ExecutionPlan;
 
@@ -35,11 +36,12 @@ interface DocumentEngine
      *
      * @param ExecutionPlan $plan The immutable execution instructions configuring this current pass.
      * @param string $content The pre-rendered layout content (e.g., HTML, XML, or raw data markers).
-     * @return DocumentResult Standardized value object containing raw binaries, paths, and metadata.
+     * @return DocumentContent Standardized value object containing raw binaries, paths, and metadata.
      */
     public function render(
         ExecutionPlan $plan,
-        string $content
+        string $content,
+        PipelineContext $context
     ): DocumentContent;
 
     /**

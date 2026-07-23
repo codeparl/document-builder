@@ -296,7 +296,6 @@ final class MergeStage implements PipelineStage
             $context->setResult(
                 $result
             );
-
         } catch (Throwable $e) {
 
             AppLogger::channel('document-builder')->error(

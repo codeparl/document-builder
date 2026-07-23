@@ -13,7 +13,6 @@ return [
     */
 
 
-
     'storage' => [
 
         'disk' => 'local',
@@ -30,7 +29,7 @@ return [
         'enabled' => true,
         'threshold' => 500,
 
-    
+
 
     ],
 
@@ -39,6 +38,17 @@ return [
 
         'pdf' => [
             'engine' => 'mpdf',
+        ],
+        'xlsx' => [
+            'engine' => 'phpspreadsheet',
+        ],
+
+        'csv' => [
+            'engine' => 'native',
+        ],
+
+        'docx' => [
+            'engine' => 'phpword',
         ],
 
     ],

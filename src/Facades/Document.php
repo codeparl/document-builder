@@ -5,25 +5,17 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder\Facades;
 
 use Illuminate\Support\Facades\Facade;
+use RuntimeException;
 use UnnovateBrains\DocumentBuilder\DocumentBuilder;
 use UnnovateBrains\DocumentBuilder\DocumentManager;
 
 /**
- * Document Builder Facade
- *
  * @method static DocumentBuilder pdf()
  * @method static DocumentBuilder excel()
  * @method static DocumentBuilder csv()
- *
- * Batch helpers:
- *
- * @method static array status(string $batchId)
- * @method static void updateStatus(string $batchId, array $status)
- * @method static array plan(string $batchId)
- * @method static array chunks(string $batchId, string $type = 'pdf')
- * @method static string final(string $batchId, string $type = 'pdf')
- * @method static string merged(string $batchId, string $type = 'pdf')
- * @method static void cleanup(string $batchId)
+ * @method static DocumentBuilder word()
+ * @method static DocumentBuilder html()
+ * @method static DocumentBuilder image()
  *
  * @see DocumentManager
  */
@@ -35,23 +27,76 @@ class Document extends Facade
     }
 
 
-    /**
-     * Start a fluent PDF builder session.
-     */
+
     public static function pdf(): DocumentBuilder
     {
-        return new DocumentBuilder('pdf');
+        return static::builder('pdf');
     }
+
 
 
     public static function excel(): DocumentBuilder
     {
-        return new DocumentBuilder('excel');
+        return static::builder('xlsx');
     }
+
 
 
     public static function csv(): DocumentBuilder
     {
-        return new DocumentBuilder('csv');
+        return static::builder('csv');
+    }
+
+
+
+    public static function word(): DocumentBuilder
+    {
+        return static::builder('docx');
+    }
+
+
+
+    public static function html(): DocumentBuilder
+    {
+        return static::builder('html');
+    }
+
+
+
+    public static function image(): DocumentBuilder
+    {
+        return static::builder('png');
+    }
+
+
+
+    /**
+     * Create document builder with configured default engine.
+     */
+    protected static function builder(
+        string $type
+    ): DocumentBuilder {
+
+
+        $engine =
+            config(
+                "document-builder.drivers.{$type}.engine"
+            );
+
+
+
+        if (!$engine) {
+
+            throw new RuntimeException(
+                "No default engine configured for document type [{$type}]"
+            );
+        }
+
+
+
+        return new DocumentBuilder(
+            type: $type,
+            engine: $engine
+        );
     }
 }

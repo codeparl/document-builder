@@ -2,6 +2,7 @@
 
 namespace UnnovateBrains\DocumentBuilder\Contracts;
 
+use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Support\ExecutionPlan;
 use UnnovateBrains\DocumentBuilder\Support\DocumentResult;
 
@@ -26,7 +27,8 @@ interface DocumentDriver
      */
     public function handle(
         ExecutionPlan $plan,
-        string $content
+        string $content,
+        PipelineContext $context
     ): DocumentContent;
 
     /**
@@ -64,4 +66,19 @@ interface DocumentDriver
      * @return \UnnovateBrains\DocumentBuilder\Contracts\DocumentEngine
      */
     public function getEngineInstance(): DocumentEngine;
+
+    /**
+     * Determine whether this document format can be generated
+     * as multiple independent chunks.
+     *
+     * Drivers that return false will receive the entire dataset
+     * as a single chunk, even when chunking has been requested.
+     */
+    public function supportsSplitting(): bool;
+
+    /**
+     * Determine whether independently generated chunks
+     * can be merged back into a single document.
+     */
+    public function supportsMerging(): bool;
 }

@@ -40,7 +40,8 @@ final class DocumentGenerator
 
         return $driver->handle(
             $context->getPlan(),
-            $context->getRenderedContent() ?? ''
+            $context->getRenderedContent() ?? '',
+            $context
         );
     }
 }

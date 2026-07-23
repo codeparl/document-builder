@@ -8,6 +8,7 @@ use UnnovateBrains\DocumentBuilder\Contracts\DocumentContent;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentDriver;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentEngine;
 use UnnovateBrains\DocumentBuilder\Engines\MpdfEngine;
+use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Support\DocumentContentFactory;
 use UnnovateBrains\DocumentBuilder\Support\ExecutionPlan;
 
@@ -22,10 +23,10 @@ final class MpdfDriver implements DocumentDriver
         $this->engineInstance = $engineInstance ?? new MpdfEngine($factory);
     }
 
-    public function handle(ExecutionPlan $plan, string $content): DocumentContent
+    public function handle(ExecutionPlan $plan, string $content, PipelineContext $context): DocumentContent
     {
         // Delegate structural processing down into the lower-level vendor engine wrapper
-        return $this->engineInstance->render($plan, $content);
+        return $this->engineInstance->render($plan, $content, $context);
     }
 
     public function type(): string
@@ -52,5 +53,16 @@ final class MpdfDriver implements DocumentDriver
     public function getEngineInstance(): DocumentEngine
     {
         return $this->engineInstance;
+    }
+
+
+    public function supportsSplitting(): bool
+    {
+        return true;
+    }
+
+    public function supportsMerging(): bool
+    {
+        return true;
     }
 }

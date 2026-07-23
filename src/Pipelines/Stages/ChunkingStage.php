@@ -24,64 +24,58 @@ final class ChunkingStage implements PipelineStage
         Closure $next
     ): mixed {
 
-        try {
+        $plan = $context->getPlan();
 
-            $plan = $context->getPlan();
+        /*
+    |--------------------------------------------------------------------------
+    | No chunking requested
+    |--------------------------------------------------------------------------
+    */
+        if (!$plan->getChunkSize()) {
+            return $next($context);
+        }
 
+        /*
+    |--------------------------------------------------------------------------
+    | Resolve driver capabilities
+    |--------------------------------------------------------------------------
+    */
 
-            /*
-            |--------------------------------------------------------------------------
-            | No chunking requested
-            |--------------------------------------------------------------------------
-            */
-            if (!$plan->getChunkSize()) {
-                return $next($context);
-            }
+        $driver = $context->getDriver();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Split records into chunks
-            |--------------------------------------------------------------------------
-            */
+        /*
+    |--------------------------------------------------------------------------
+    | Drivers that cannot split records
+    |--------------------------------------------------------------------------
+    |
+    | Excel, Word, etc.
+    |
+    | They still participate in the chunk execution workflow, but receive
+    | the complete dataset as a single chunk.
+    |
+    */
+
+        if (!$driver->supportsSplitting()) {
+
+            $chunks = [
+                is_array($context->getRecords())
+                    ? $context->getRecords()
+                    : iterator_to_array($context->getRecords())
+            ];
+        } else {
 
             $chunks = $this->chunk(
                 $context->getRecords(),
                 $plan->getChunkSize()
             );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Resolve execution strategy
-            |--------------------------------------------------------------------------
-            |
-            | Examples:
-            | sync  -> process immediately
-            | queue -> dispatch workers
-            |
-            */
-
-            return $this->executorManager->execute(
-                $plan->getChunkExecutor(),
-                $context,
-                $chunks,
-                $next
-            );
-        } catch (Throwable $e) {
-
-            AppLogger::channel('document-builder')->error(
-                'Failed to execute chunking stage',
-                new AppContext($context->getPlan()->getContext()),
-                [
-                    'stage' => 'ChunkingStage',
-                    'document_type' => $context->getPlan()->getType(),
-                    'chunk_size' => $context->getPlan()->getChunkSize(),
-                    'error' => $e->getMessage(),
-                ]
-            );
-
-            throw $e;
         }
+
+        return $this->executorManager->execute(
+            $plan->getChunkExecutor(),
+            $context,
+            $chunks,
+            $next
+        );
     }
 
 
