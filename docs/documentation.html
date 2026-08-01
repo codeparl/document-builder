@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Unnovate Brains — Document Builder — Documentation</title>
+  <style>
+    body{font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:900px;margin:32px auto;color:#222;line-height:1.6;padding:0 16px}
+    h1,h2,h3{color:#0b3a66}
+    pre{background:#f7f7f7;padding:12px;border-radius:4px;overflow:auto}
+    code{background:#f1f1f1;padding:2px 6px;border-radius:4px}
+    nav{margin-bottom:24px}
+    .toc a{display:block;padding:4px 0;color:#0b66a3;text-decoration:none}
+    footer{margin-top:48px;color:#666;font-size:0.95em}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Unnovate Brains — Document Builder</h1>
+    <p>Documentation: a driver-based, contract-first document execution framework (PDF, Word, Excel, CSV) designed to be Laravel-friendly while remaining framework-agnostic.</p>
+  </header>
+
+  <nav class="toc">
+    <strong>Contents</strong>
+    <a href="#overview">Overview</a>
+    <a href="#installation">Installation</a>
+    <a href="#quick-start">Quick start</a>
+    <a href="#concepts">Core concepts</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#drivers">Drivers and rendering engines</a>
+    <a href="#storage">Storage</a>
+    <a href="#queue">Queue execution</a>
+    <a href="#extending">Extending the package</a>
+    <a href="#examples">Examples</a>
+    <a href="#contributing">Contributing</a>
+  </nav>
+
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>This package lets applications define documents as execution plans and delegates all processing to a pipeline that loads data, renders templates, executes format-specific engines and stores the result. The core is driven by contracts and drivers so the package can be extended without coupling it to specific application code or storage backends.</p>
+  </section>
+
+  <section id="installation">
+    <h2>Installation</h2>
+    <p>Install via Composer:</p>
+    <pre><code>composer require unnovatebrains/document-builder</code></pre>
+    <p>If the package provides a Laravel service provider, register it (or rely on package auto-discovery). Publish configuration and other assets when available.</p>
+  </section>
+
+  <section id="quick-start">
+    <h2>Quick start</h2>
+    <p>Example usage demonstrates the public API vision. Adapt the code to the concrete classes and facades provided by the package implementation.</p>
+    <pre><code>// Create and queue a PDF from a collection
+Document::pdf()
+    ->fromCollection($students)
+    ->view('reports.students')
+    ->engine('mpdf')
+    ->chunk(100)
+    ->merge(true)
+    ->queue()
+    ->dispatch();
+
+// Save a Word document
+Document::word()
+    ->fromModel($invoice)
+    ->view('documents.invoice')
+    ->save();
+
+// Generate an Excel file
+Document::excel()
+    ->fromQuery(Student::query())
+    ->save();
+
+// Generate a CSV
+Document::csv()
+    ->fromCollection($students)
+    ->save();
+</code></pre>
+  </section>
+
+  <section id="concepts">
+    <h2>Core concepts</h2>
+    <ul>
+      <li><strong>Builder</strong> — collects options (type, engine, data source, view, storage, processing options) and creates an execution plan.</li>
+      <li><strong>Execution Plan</strong> — immutable, serializable definition of how to build the document.</li>
+      <li><strong>Pipeline</strong> — orchestrates execution: resolve context, load data, transform, render, run engine, store result.</li>
+      <li><strong>Driver</strong> — format-specific renderer (e.g., mPDF driver for PDF).</li>
+      <li><strong>Storage</strong> — abstracted by contracts so implementations can be local disk, S3, MinIO, etc.</li>
+      <li><strong>Queue</strong> — package defines queue contract; integration with worker systems is pluggable.</li>
+    </ul>
+  </section>
+
+  <section id="architecture">
+    <h2>Architecture</h2>
+    <pre><code>Request
+ ↓
+Create Execution Plan
+ ↓
+Resolve Context
+ ↓
+Load Data Source
+ ↓
+Transform Data
+ ↓
+Render Template
+ ↓
+Execute Document Engine
+ ↓
+Store Result
+ ↓
+Return Document Result
+</code></pre>
+  </section>
+
+  <section id="drivers">
+    <h2>Drivers and rendering engines</h2>
+    <p>Drivers isolate format-specific rendering. Typical engines:</p>
+    <ul>
+      <li>PDF: mPDF, Chrome PDF (headless), TCPDF</li>
+      <li>Word: PHPWord</li>
+      <li>Excel: PhpSpreadsheet</li>
+      <li>CSV: native CSV writer</li>
+    </ul>
+    <p>To add a new engine, implement the driver contract and register the driver with the registry provided by the core.</p>
+  </section>
+
+  <section id="storage">
+    <h2>Storage</h2>
+    <p>The package defines a storage contract. Implementations are responsible for:</p>
+    <ul>
+      <li>temporary files</li>
+      <li>generated documents</li>
+      <li>chunks and merged files</li>
+    </ul>
+    <p>Applications can provide host services that map storage paths to tenant/school contexts, for example:</p>
+    <pre><code>tenants/{tenant}/schools/{school}/documents</code></pre>
+  </section>
+
+  <section id="queue">
+    <h2>Queue execution</h2>
+    <p>Queue-based execution is optional. The package defines a queue contract and integrates with queue backends through adapters. Example queue backends: Laravel Queue, Redis, SQS, database queue.</p>
+  </section>
+
+  <section id="extending">
+    <h2>Extending the package</h2>
+    <p>Recommended extension points:</p>
+    <ul>
+      <li><strong>Drivers</strong> — implement new drivers for additional formats or engines.</li>
+      <li><strong>Storage adapters</strong> — implement storage contract to support target storage systems.</li>
+      <li><strong>Context hosts</strong> — supply tenant, school, or user context for multi-tenant applications.</li>
+    </ul>
+    <p>Design rule: keep the core independent and rely on contracts — do not include application-specific logic in the core.</p>
+  </section>
+
+  <section id="examples">
+    <h2>Examples and API sketch</h2>
+    <p>These examples show the intended public-facing API. Implementation details may differ.</p>
+    <pre><code>// PDF
+Document::pdf()
+    ->fromCollection($students)
+    ->view('reports.students')
+    ->engine('mpdf')
+    ->save();
+
+// Word
+Document::word()
+    ->fromModel($invoice)
+    ->view('invoice')
+    ->save();
+
+// Excel
+Document::excel()
+    ->fromQuery(Student::query())
+    ->save();
+
+// CSV
+Document::csv()
+    ->fromCollection($students)
+    ->save();
+</code></pre>
+  </section>
+
+  <section id="contributing">
+    <h2>Contributing</h2>
+    <p>Contributions are welcome. Open issues describing bugs or feature requests and submit pull requests for proposed fixes or additions. Keep the core package decoupled and rely on contracts for external integrations.</p>
+  </section>
+
+  <footer>
+    <p>For more details and implementation-specific documentation, check the repository source and service provider files in the project. If you want the README to contain exact code samples matching the current implementation, point me to the service provider, facade, or builder implementation files and I will update the examples to exactly match the code.</p>
+  </footer>
+</body>
+</html>
