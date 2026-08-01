@@ -21,15 +21,15 @@ final class OutputStage implements PipelineStage
     ) {}
 
 
+
     /**
-     * Persist the completed document artifact.
+     * Persist completed document artifact.
      *
-     * Final pipeline boundary responsible for:
+     * Responsibilities:
      *
-     * - storing generated document content
-     * - normalizing stored paths
-     * - updating final DocumentResult
-     * - logging successful generation
+     * - take DocumentContent from previous stage
+     * - store artifact permanently
+     * - replace result with storage-backed content
      */
     public function handle(
         PipelineContext $context,
@@ -41,73 +41,93 @@ final class OutputStage implements PipelineStage
             $result = $context->getResult();
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | No generated artifact
-            |--------------------------------------------------------------------------
-            */
             if ($result === null) {
                 return $next($context);
             }
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Ignore incomplete executions
-            |--------------------------------------------------------------------------
-            */
             if (! $result->isComplete()) {
                 return $next($context);
             }
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Capture final metadata before replacing result
-            |--------------------------------------------------------------------------
-            */
-            $filename = $result->getFilename();
 
-            $type = $result->getType();
-
-            $metadata = $result->getMetadata();
+            $plan = $context->getPlan();
 
 
+            $filename =
+                $result->getFilename();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Persist final artifact
-            |--------------------------------------------------------------------------
-            */
-            $storedPath = $this->storage->putContent(
-                $result->getPath(),
-                $result->getContent()
-            );
+
+            $type =
+                $result->getType();
+
+
+            $metadata =
+                $result->getMetadata();
 
 
 
             /*
             |--------------------------------------------------------------------------
-            | Normalize final result
+            | Get generated content
             |--------------------------------------------------------------------------
-            |
-            | Storage may resolve a different physical path.
-            |
             */
-            if ($storedPath !== $result->getPath()) {
 
-                $content = new FileContent(
-                    path: $this->storage->resolvePath(
-                        $storedPath
-                    ),
-                    type: $type,
-                    filename: $filename,
-                    metadata: $metadata->toArray()
+            $content =
+                $result->getContent();
+
+
+            if ($content === null) {
+
+                throw new \RuntimeException(
+                    'Document result does not contain content.'
+                );
+            }
+
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Resolve final storage path
+            |--------------------------------------------------------------------------
+            */
+
+            $storedPath =
+                $this->storage->putContent(
+                    $result->getPath(),
+                    $content
                 );
 
 
-                $result = new DocumentResult(
-                    content: $content,
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create permanent storage content
+            |--------------------------------------------------------------------------
+            */
+
+            $storedContent =
+                new FileContent(
+                    path: $storedPath,
+                    type: $type,
+                    filename: $filename,
+                    extension: $plan->extension(),
+                    metadata: $metadata->toArray(),
+                    physical: false
+                );
+
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Replace result
+            |--------------------------------------------------------------------------
+            */
+
+            $finalResult =
+                new DocumentResult(
+                    content: $storedContent,
                     path: $storedPath,
                     filename: $filename,
                     type: $type,
@@ -115,22 +135,18 @@ final class OutputStage implements PipelineStage
                 );
 
 
-                $context->setResult(
-                    $result
-                );
-            }
+            $context->setResult(
+                $finalResult
+            );
 
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Log successful document generation
-            |--------------------------------------------------------------------------
-            */
             AppLogger::channel('document-builder')
                 ->info(
                     'Document generated successfully',
-                    new AppContext($context->getPlan()->getContext()),
+                    new AppContext(
+                        $plan->getContext()
+                    ),
                     [
                         'path' => $storedPath,
                         'filename' => $filename,
@@ -139,18 +155,21 @@ final class OutputStage implements PipelineStage
                 );
         } catch (Throwable $e) {
 
-            AppLogger::channel('document-builder')->error(
-                'Failed to persist document output',
-                new AppContext($context->getPlan()->getContext()),
-                [
-                    'stage' => 'OutputStage',
-                    'document_type' => $context->getPlan()->getType(),
-                    'error' => $e->getMessage(),
-                ]
-            );
+            AppLogger::channel('document-builder')
+                ->error(
+                    'Failed to persist document output',
+                    new AppContext(
+                        $context->getPlan()->getContext()
+                    ),
+                    [
+                        'stage' => 'OutputStage',
+                        'error' => $e->getMessage(),
+                    ]
+                );
 
             throw $e;
         }
+
 
         return $next($context);
     }

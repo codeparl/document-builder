@@ -65,7 +65,7 @@ class Document extends Facade
 
     public static function image(): DocumentBuilder
     {
-        return static::builder('png');
+        return static::builder('image');
     }
 
 

@@ -21,7 +21,6 @@ use Illuminate\Support\Str;
 
 it('executes standard document pipeline and stores final document', function () {
     $result =  Document::pdf()
-        ->engine('mpdf')
         ->fromArray(['name' => 'Hassan', 'phone' => '038374764'])
         ->view('students', [
             'term' => 'First Term',
@@ -492,8 +491,8 @@ it('retrieves batch status through Document facade', function () {
         ]);
 });
 
-it('manually merges existing batch chunks through document facade', function () {
 
+it('manually merges existing batch chunks through document facade', function () {
 
     /*
     |--------------------------------------------------------------------------
@@ -520,13 +519,12 @@ it('manually merges existing batch chunks through document facade', function () 
     | Generate chunk documents
     |--------------------------------------------------------------------------
     |
-    | Simulates already completed chunk workers.
+    | Simulates completed chunk workers.
     |
     */
 
     $chunkOne =
         Document::pdf()
-        ->engine('mpdf')
         ->fromArray([
             [
                 'name' => 'Student One',
@@ -541,7 +539,6 @@ it('manually merges existing batch chunks through document facade', function () 
 
     $chunkTwo =
         Document::pdf()
-        ->engine('mpdf')
         ->fromArray([
             [
                 'name' => 'Student Two',
@@ -558,18 +555,21 @@ it('manually merges existing batch chunks through document facade', function () 
     |--------------------------------------------------------------------------
     | Store rendered chunks
     |--------------------------------------------------------------------------
+    |
+    | Workspace stores raw document content.
+    |
     */
 
     $workspace->putRendered(
         1,
-        $chunkOne->getContent()->value(),
+        $chunkOne->getContent()->toString(),
         'pdf'
     );
 
 
     $workspace->putRendered(
         2,
-        $chunkTwo->getContent()->value(),
+        $chunkTwo->getContent()->toString(),
         'pdf'
     );
 
@@ -599,11 +599,6 @@ it('manually merges existing batch chunks through document facade', function () 
     |--------------------------------------------------------------------------
     | Execute manual merge
     |--------------------------------------------------------------------------
-    |
-    | User action:
-    |
-    | "Merge these chunks now"
-    |
     */
 
     $result =
@@ -645,7 +640,6 @@ it('manually merges existing batch chunks through document facade', function () 
         )
     )
         ->toBeTrue();
-
 
 
     expect(

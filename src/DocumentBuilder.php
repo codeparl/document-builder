@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use UnnovateBrains\DocumentBuilder\Concerns\ExcelBuilderConcern;
 use UnnovateBrains\DocumentBuilder\Concerns\ExcelBuilderTrait;
+use UnnovateBrains\DocumentBuilder\Concerns\ImageBuilderTrait;
 use UnnovateBrains\DocumentBuilder\Concerns\PdfBuilderTrait;
 use UnnovateBrains\DocumentBuilder\Contracts\Source;
 use UnnovateBrains\DocumentBuilder\Services\DocumentTransformer;
@@ -32,6 +33,7 @@ class DocumentBuilder
 
     use ExcelBuilderTrait;
     use PdfBuilderTrait;
+    use ImageBuilderTrait;
 
     protected ?Source $source = null;
     protected ?string $view = null;
@@ -553,6 +555,7 @@ class DocumentBuilder
      */
     public function save(): mixed
     {
+
         return $this->manager->generate($this->compilePlan());
     }
 

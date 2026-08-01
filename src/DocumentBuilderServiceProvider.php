@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder;
 
 use Illuminate\Support\ServiceProvider;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 use UnnovateBrains\DocumentBuilder\Chunking\ChunkExecutorManager;
 use UnnovateBrains\DocumentBuilder\Chunking\DefaultChunkProcessor;
 use UnnovateBrains\DocumentBuilder\Chunking\QueueChunkExecutor;
@@ -21,7 +23,9 @@ use UnnovateBrains\DocumentBuilder\Contracts\DocumentStorage;
 use UnnovateBrains\DocumentBuilder\Contracts\TemplateRenderer;
 use UnnovateBrains\DocumentBuilder\Drivers\DriverManager;
 use UnnovateBrains\DocumentBuilder\Drivers\Excel\PhpSpreadsheetDriver;
+use UnnovateBrains\DocumentBuilder\Drivers\Image\InterventionImageDriver;
 use UnnovateBrains\DocumentBuilder\Drivers\Pdf\MpdfDriver; // Added
+use UnnovateBrains\DocumentBuilder\Engines\InterventionImageEngine;
 use UnnovateBrains\DocumentBuilder\Engines\MpdfEngine;
 use UnnovateBrains\DocumentBuilder\Engines\PhpSpreadsheetEngine;
 use UnnovateBrains\DocumentBuilder\Merge\DefaultMerger;
@@ -37,6 +41,7 @@ use UnnovateBrains\DocumentBuilder\Repositories\StorageDocumentBatchRepository;
 use UnnovateBrains\DocumentBuilder\Services\DocumentPathGenerator;
 use UnnovateBrains\DocumentBuilder\Storage\DocumentPathResolver;
 use UnnovateBrains\DocumentBuilder\Storage\LaravelDocumentStorage;
+use UnnovateBrains\DocumentBuilder\Support\ImageDriverResolver;
 use UnnovateBrains\DocumentBuilder\Support\SourceFactory;
 use UnnovateBrains\DocumentBuilder\Support\SourceRegistry;
 
@@ -257,6 +262,13 @@ final class DocumentBuilderServiceProvider extends ServiceProvider
         );
 
 
+        $this->app->singleton(
+            ImageManager::class,
+            function () {
+
+                return ImageDriverResolver::manager();
+            }
+        );
         // Resolve the manager from the container once boot starts
         // 1. Register production system core drivers
 
@@ -276,6 +288,15 @@ final class DocumentBuilderServiceProvider extends ServiceProvider
             new PhpSpreadsheetDriver(
                 $this->app->make(PhpSpreadsheetEngine::class)
             )
+        );
+        $driverManager->register(
+
+            new InterventionImageDriver(
+                $this->app->make(
+                    InterventionImageEngine::class
+                )
+            )
+
         );
 
         $this->app->singleton(

@@ -38,6 +38,7 @@ final class DocumentManager
             return $this->queue->dispatchPlan($plan);
         }
 
+
         return $this->pipeline->execute($plan);
     }
 

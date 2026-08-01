@@ -24,7 +24,7 @@ final class ExecutionPlanSerializer
 
             'type' =>
             $plan->getType(),
-
+            'extension' => $plan->extension(),
 
             'engine' =>
             $plan->getEngine(),
@@ -170,7 +170,7 @@ final class ExecutionPlanSerializer
 
             type: $payload['type'],
 
-
+            extension: $payload['extension'],
 
             engine: $payload['engine'] ?? null,
 

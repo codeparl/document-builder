@@ -86,6 +86,43 @@ final class LaravelDocumentStorage implements DocumentStorage
     }
 
     /**
+     * Open a read stream from storage.
+     *
+     * Supports local disks, S3, etc.
+     */
+    public function readStream(
+        string $path
+    ) {
+        return $this->getDisk()->readStream(
+            $path
+        );
+    }
+
+
+    /**
+     * Get file size in bytes.
+     */
+    public function size(
+        string $path
+    ): ?int {
+
+        $resolved =
+            $this->pathResolver->resolve($path);
+
+
+        $disk =
+            $this->getDisk();
+
+
+        if (! $disk->exists($resolved)) {
+            return null;
+        }
+
+
+        return $disk->size($resolved);
+    }
+
+    /**
      * @inheritDoc
      */
     public function delete(string $path): bool
@@ -169,6 +206,29 @@ final class LaravelDocumentStorage implements DocumentStorage
             }
         );
 
+
+        return $resolved;
+    }
+
+    /**
+     * Return the physical filesystem path when supported.
+     */
+    public function physicalPath(
+        string $path
+    ): string {
+
+        $resolved =
+            $this->resolvePath($path);
+
+        $disk =
+            $this->getDisk();
+
+        if (method_exists($disk, 'path')) {
+
+            return $disk->path(
+                $resolved
+            );
+        }
 
         return $resolved;
     }

@@ -10,7 +10,6 @@ use SchoolPalm\AppLogger\Context\AppContext;
 use SchoolPalm\AppLogger\Facades\AppLogger;
 use Throwable;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentContent;
-use UnnovateBrains\DocumentBuilder\Contracts\DocumentStorage;
 use UnnovateBrains\DocumentBuilder\Merge\DocumentMergerManager;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineContext;
 use UnnovateBrains\DocumentBuilder\Pipelines\Contracts\PipelineStage;
@@ -22,45 +21,11 @@ use UnnovateBrains\DocumentBuilder\Support\FileContent;
 final class MergeStage implements PipelineStage
 {
     public function __construct(
-        private readonly DocumentMergerManager $manager,
-        private readonly DocumentStorage $storage
+        private readonly DocumentMergerManager $manager
     ) {}
 
 
 
-    /**
-     * Merge generated document chunks into the final document artifact.
-     *
-     * Chunked generation stores every generated fragment inside the execution
-     * workspace. This stage combines those fragments into one final artifact.
-     *
-     * Flow:
-     *
-     * rendered/1.pdf
-     * rendered/2.pdf
-     * rendered/3.pdf
-     *
-     *        |
-     *        v
-     *
-     * merger
-     *
-     *        |
-     *        v
-     *
-     * final/document.pdf
-     *
-     *        |
-     *        v
-     *
-     * OutputStage
-     *
-     *        |
-     *        v
-     *
-     * permanent storage path
-     *
-     */
     public function handle(
         PipelineContext $context,
         Closure $next
@@ -71,26 +36,11 @@ final class MergeStage implements PipelineStage
             $plan = $context->getPlan();
 
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Skip merge
-            |--------------------------------------------------------------------------
-            |
-            | Normal documents already have a result from GenerateDocumentStage.
-            |
-            */
-            if (!$plan->shouldMerge()) {
+            if (! $plan->shouldMerge()) {
                 return $next($context);
             }
 
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Resolve workspace
-            |--------------------------------------------------------------------------
-            */
 
             $execution = $context->execution();
 
@@ -107,12 +57,6 @@ final class MergeStage implements PipelineStage
 
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Resolve generated chunk files
-            |--------------------------------------------------------------------------
-            */
-
             $chunks =
                 $workspace->renderedChunkPaths(
                     $plan->getType()
@@ -128,14 +72,6 @@ final class MergeStage implements PipelineStage
 
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Convert workspace paths into physical paths
-            |--------------------------------------------------------------------------
-            |
-            | Libraries like FPDI require real filesystem paths.
-            |
-            */
             $physicalChunks = [];
 
 
@@ -149,24 +85,12 @@ final class MergeStage implements PipelineStage
 
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Resolve merger
-            |--------------------------------------------------------------------------
-            */
-
             $merger =
                 $this->manager->merger(
                     $plan->getType()
                 );
 
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Merge chunks
-            |--------------------------------------------------------------------------
-            */
 
             $merged =
                 $merger->merge(
@@ -178,101 +102,85 @@ final class MergeStage implements PipelineStage
 
             /*
             |--------------------------------------------------------------------------
-            | Store merged document inside workspace
-            |--------------------------------------------------------------------------
-            |
-            | We do not keep the merged binary in PipelineContext.
-            | The workspace becomes the temporary artifact store.
-            |
-            */
-            if ($merged instanceof DocumentContent) {
-
-                $workspace->putFinal(
-                    $merged->value(),
-                    $plan->getType()
-                );
-            } else {
-
-                $workspace->putFinal(
-                    $merged,
-                    $plan->getType()
-                );
-            }
-
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Resolve filename
+            | Store merged artifact in workspace
             |--------------------------------------------------------------------------
             */
+
+            $workspace->putFinal(
+                $merged instanceof DocumentContent
+                    ? $merged->value()
+                    : $merged,
+                $plan->getType()
+            );
+
+
 
             $filename =
                 $plan->getOutputFilename()
                 ?? 'document';
 
 
-
             if (
-                !str_ends_with(
+                ! str_ends_with(
                     strtolower($filename),
                     '.' . strtolower($plan->getType())
                 )
             ) {
 
-                $filename .=
-                    '.' . $plan->getType();
+                $filename .= '.' . $plan->getType();
             }
 
 
 
             /*
             |--------------------------------------------------------------------------
-            | Resolve permanent output path
+            | Workspace relative artifact
             |--------------------------------------------------------------------------
-            |
-            | This is NOT the workspace path.
-            | OutputStage will copy the workspace artifact here.
-            |
             */
+
+            $workspacePath =
+                'final/document.' . $plan->getType();
+
+
+
             $outputPath =
-                $this->storage->resolvePath(
-                    $plan->getOutputPath()
-                        ?? 'documents/' . $filename
-                );
+                $plan->getOutputPath()
+                ?? 'documents/' . $filename;
 
 
 
             /*
             |--------------------------------------------------------------------------
-            | Create FileContent pointing to workspace artifact
+            | Create FileContent from workspace artifact
             |--------------------------------------------------------------------------
             */
 
             $content =
                 new FileContent(
                     path: $workspace->physicalPath(
-                        'final/document.' . $plan->getType()
+                        $workspacePath
                     ),
                     type: $plan->getType(),
                     filename: $filename,
-                    metadata: $plan->getMetadata()?->toArray() ?? []
+                    extension: $plan->extension(),
+                    metadata: $plan->getMetadata()?->toArray() ?? [],
+                    physical: true
                 );
 
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Create final document result
-            |--------------------------------------------------------------------------
-            */
-
             $result =
                 new DocumentResult(
+
                     content: $content,
+
                     path: $outputPath,
+
                     filename: $filename,
-                    metadata: $plan->getMetadata() ?? new DocumentMetadata([]),
+
+                    metadata: $plan->getMetadata()
+                        ?? new DocumentMetadata([]),
+
                     type: $plan->getType()
                 );
 
@@ -287,30 +195,29 @@ final class MergeStage implements PipelineStage
 
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | Replace execution result
-            |--------------------------------------------------------------------------
-            */
-
             $context->setResult(
                 $result
             );
         } catch (Throwable $e) {
 
-            AppLogger::channel('document-builder')->error(
-                'Failed to merge document chunks',
-                new AppContext($context->getPlan()->getContext()),
-                [
-                    'stage' => 'MergeStage',
-                    'document_type' => $context->getPlan()->getType(),
-                    'should_merge' => $context->getPlan()->shouldMerge(),
-                    'error' => $e->getMessage(),
-                ]
-            );
+            AppLogger::channel('document-builder')
+                ->error(
+                    'Failed to merge document chunks',
+                    new AppContext(
+                        $context->getPlan()->getContext()
+                    ),
+                    [
+                        'stage' => 'MergeStage',
+                        'document_type' =>
+                        $context->getPlan()->getType(),
+                        'error' =>
+                        $e->getMessage(),
+                    ]
+                );
 
             throw $e;
         }
+
 
         return $next($context);
     }

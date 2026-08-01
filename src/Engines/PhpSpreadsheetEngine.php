@@ -45,10 +45,10 @@ final class PhpSpreadsheetEngine implements DocumentEngine
 
 
         $config =
-            $plan->getDriverConfig('xlsx')
+            $plan->getDriverConfig()
             ?? [];
 
-
+        $plan->setExtension('xlsx');
 
         /*
         |--------------------------------------------------------------------------
@@ -253,7 +253,7 @@ final class PhpSpreadsheetEngine implements DocumentEngine
             type: 'xlsx',
             filename: ($plan->getOutputFilename() ?? 'document')
                 . '.xlsx',
-
+            extension: 'xlsx',
             metadata: $plan->getMetadata()?->toArray()
                 ?? []
         );

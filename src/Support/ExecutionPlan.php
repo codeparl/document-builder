@@ -9,6 +9,56 @@ use UnnovateBrains\DocumentBuilder\Services\DocumentTransformer;
 
 final class ExecutionPlan
 {
+
+    private array $driverConfig = [
+        'pdf' => [
+            'page_size' => null,
+            'orientation' => null,
+            'margins' => [
+                'margin_left' => 15,
+                'margin_right' => 15,
+                'margin_top' => 16,
+                'margin_bottom' => 16,
+            ],
+            'header' => false,
+            'footer' => false,
+            'header_content' => null,
+            'footer_content' => null,
+            'watermark' => null,
+            'metadata' => [],
+        ],
+
+        'xlsx' => [
+            'sheet' => null,
+            'columns' => [],
+            'headers' => true,
+            'auto_size' => false,
+            'freeze_header' => false,
+            'filters' => false,
+        ],
+
+        'csv' => [
+            'delimiter' => ',',
+            'enclosure' => '"',
+            'encoding' => 'UTF-8',
+        ],
+
+        'docx' => [
+            'styles' => [],
+            'headers' => [],
+            'footers' => [],
+        ],
+
+        'html' => [
+            'css' => null,
+        ],
+
+        'image' => [
+            'width' => null,
+            'height' => null,
+            'quality' => null,
+        ]
+    ];
     public function __construct(
         private readonly string $type,
         private readonly ?string $engine,          // For the Document Engine (e.g., 'mpdf', 'phpspreadsheet')
@@ -24,61 +74,16 @@ final class ExecutionPlan
         private readonly bool $shouldQueue,
         private readonly ?DocumentMetadata $metadata = null,
         private readonly array $context = [],
-        private array $driverConfig = [
-            'pdf' => [
-                'page_size' => null,
-                'orientation' => null,
-                'margins' => [
-                    'margin_left' => 15,
-                    'margin_right' => 15,
-                    'margin_top' => 16,
-                    'margin_bottom' => 16,
-                ],
-                'header' => false,
-                'footer' => false,
-                'header_content' => null,
-                'footer_content' => null,
-                'watermark' => null,
-                'metadata' => [],
-            ],
-
-            'xlsx' => [
-                'sheet' => null,
-                'columns' => [],
-                'headers' => true,
-                'auto_size' => false,
-                'freeze_header' => false,
-                'filters' => false,
-            ],
-
-            'csv' => [
-                'delimiter' => ',',
-                'enclosure' => '"',
-                'encoding' => 'UTF-8',
-            ],
-
-            'docx' => [
-                'styles' => [],
-                'headers' => [],
-                'footers' => [],
-            ],
-
-            'html' => [
-                'css' => null,
-            ],
-
-            'image' => [
-                'width' => null,
-                'height' => null,
-                'quality' => null,
-            ]
-        ],
+        protected ?string $extension = null,
+        array $driverConfig = [],
 
 
         private array $transformers = [],
         protected array $excelConfig = []
 
-    ) {}
+    ) {
+        $this->driverConfig = array_merge($this->driverConfig, $driverConfig);
+    }
 
 
     public function getChunkExecutor(): string
@@ -103,6 +108,17 @@ final class ExecutionPlan
         return $this->driverConfig['pdf'] ?? [];
     }
 
+    public function setExtension(
+        string $extension
+    ): void {
+        $this->extension = $extension;
+    }
+
+
+    public function extension(): ?string
+    {
+        return $this->extension;
+    }
 
     /**
      * Get Excel/XLSX driver configuration.
@@ -153,9 +169,12 @@ final class ExecutionPlan
 
 
 
-    public function getDriverConfig(): array
+    public function getDriverConfig(?string $type = null): array
     {
-        return $this->excelConfig;
+        if ($type)
+            return $this->driverConfig[$type];
+
+        return $this->driverConfig;
     }
 
     public function getType(): string

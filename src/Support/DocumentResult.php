@@ -43,11 +43,12 @@ use UnnovateBrains\DocumentBuilder\Contracts\DocumentExecutionResult;
 final class DocumentResult implements DocumentExecutionResult
 {
     public function __construct(
-        private readonly DocumentContent $content,
+        private readonly ?DocumentContent $content,
         private readonly string $path,
         private readonly string $filename,
         private readonly string $type,
-        private readonly DocumentMetadata $metadata
+        private readonly DocumentMetadata $metadata,
+        private ?string $workspacePath = null
     ) {}
 
 
@@ -93,7 +94,10 @@ final class DocumentResult implements DocumentExecutionResult
         return $this->path;
     }
 
-
+    public function getWorkspacePath(): ?string
+    {
+        return $this->workspacePath;
+    }
     /**
      * Original document filename.
      */

@@ -392,20 +392,84 @@ final class LocalStorageWorkspace implements StorageWorkspaceInterface
 
         return match (strtolower($type)) {
 
+            /*
+        |--------------------------------------------------------------------------
+        | Documents
+        |--------------------------------------------------------------------------
+        */
+
             'pdf'
             => 'pdf',
+
 
             'spreadsheet',
             'xlsx',
             'xls'
             => 'xlsx',
 
+
             'word',
             'docx'
             => 'docx',
 
+
             'csv'
             => 'csv',
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Images
+        |--------------------------------------------------------------------------
+        */
+
+            'image',
+            'img'
+            => config(
+                'document-builder.drivers.image.extension',
+                'png'
+            ),
+
+
+            'jpg',
+            'jpeg'
+            => 'jpg',
+
+
+            'png'
+            => 'png',
+
+
+            'webp'
+            => 'webp',
+
+
+            'avif'
+            => 'avif',
+
+
+            'gif'
+            => 'gif',
+
+
+            'svg'
+            => 'svg',
+
+
+            'bmp'
+            => 'bmp',
+
+
+            'tif',
+            'tiff'
+            => 'tiff',
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Fallback
+        |--------------------------------------------------------------------------
+        */
 
             default
             => strtolower($type),

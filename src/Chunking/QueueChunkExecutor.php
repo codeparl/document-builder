@@ -128,10 +128,6 @@ final class QueueChunkExecutor implements ChunkExecutor
 
 
 
-        dump('jobs', count($jobs));
-
-
-
         $batch =
             Bus::batch($jobs)
             ->then(function (Batch $batch) use ($executionId) {

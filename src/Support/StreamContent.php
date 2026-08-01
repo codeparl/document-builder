@@ -27,7 +27,8 @@ final class StreamContent implements DocumentContent
         private readonly mixed $stream,
         private readonly ?int $size = null,
         private readonly string $type = 'pdf',
-        private readonly string $filename = 'document.pdf',
+        private readonly ?string $extension = 'pdf',
+        private readonly string $filename = 'document',
         private readonly array $metadata = []
     ) {
         if (!is_resource($stream)) {
@@ -35,6 +36,11 @@ final class StreamContent implements DocumentContent
                 'StreamContent requires a valid PHP stream resource.'
             );
         }
+    }
+
+    public function getExtension(): string
+    {
+        return $this->extension;
     }
 
     /**
@@ -132,7 +138,7 @@ final class StreamContent implements DocumentContent
         }
 
         $meta = stream_get_meta_data($this->stream);
-        
+
         if ($meta['seekable'] ?? false) {
             rewind($this->stream);
         }
@@ -147,6 +153,7 @@ final class StreamContent implements DocumentContent
         string $path,
         ?string $type = null,
         ?string $filename = null,
+        ?string $extension = 'pdf',
         array $metadata = []
     ): self {
         if (!file_exists($path)) {
@@ -174,6 +181,7 @@ final class StreamContent implements DocumentContent
             size: $size === false ? null : $size,
             type: $type,
             filename: $filename,
+            extension: $extension,
             metadata: $metadata
         );
     }

@@ -137,7 +137,7 @@ trait PdfBuilderTrait
     /**
      * Enable watermark.
      */
-    public function watermark(
+    public function addWatermark(
         string $text
     ): self {
 

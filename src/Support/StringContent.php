@@ -22,6 +22,7 @@ final class StringContent implements DocumentContent
     public function __construct(
         private readonly string $content,
         private readonly string $type = 'pdf',
+        private readonly string $extension = 'pdf',
         private readonly string $filename = 'document',
         private readonly array $metadata = []
     ) {}
@@ -95,6 +96,11 @@ final class StringContent implements DocumentContent
     public function getFilename(): string
     {
         return $this->filename;
+    }
+
+    public function getExtension(): string
+    {
+        return $this->extension;
     }
 
     /**

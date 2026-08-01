@@ -110,4 +110,30 @@ interface DocumentStorage
         string $path,
         DocumentContent $content
     ): string;
+
+    /**
+     * Return the physical filesystem path when supported.
+     */
+    public function physicalPath(
+        string $path
+    ): string;
+
+    /**
+     * Read a stored document as a stream.
+     *
+     * Useful for large files without loading
+     * the whole file into memory.
+     */
+    public function readStream(
+        string $path
+    );
+
+
+
+    /**
+     * Get stored document size in bytes.
+     */
+    public function size(
+        string $path
+    ): ?int;
 }

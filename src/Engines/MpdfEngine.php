@@ -55,7 +55,8 @@ final class MpdfEngine implements DocumentEngine
         */
 
         $config =
-            $plan->getDriverConfig('pdf');
+            $plan->getPdfConfig();
+
 
 
 
@@ -73,7 +74,7 @@ final class MpdfEngine implements DocumentEngine
             );
 
 
-
+        $plan->setExtension('pdf');
         /*
         |--------------------------------------------------------------------------
         | Render HTML
@@ -111,7 +112,7 @@ final class MpdfEngine implements DocumentEngine
             type: $this->type(),
             filename: ($plan->getOutputFilename() ?? 'document')
                 . '.pdf',
-
+            extension: 'pdf',
             metadata: $plan->getMetadata()
                 ->merge([
                     'engine' => $this->name(),

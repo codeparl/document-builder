@@ -34,6 +34,7 @@ final class DocumentContentFactory
         mixed $content,
         string $type = 'pdf',
         string $filename = 'document.pdf',
+        string $extension = 'pdf',
         array $metadata = []
     ): DocumentContent {
 
@@ -59,6 +60,7 @@ final class DocumentContentFactory
                 path: $content,
                 type: $type,
                 filename: $filename,
+                extension: $extension,
                 metadata: $metadata
             );
         }
@@ -77,6 +79,7 @@ final class DocumentContentFactory
                 size: $size,
                 type: $type,
                 filename: $filename,
+                extension: $extension,
                 metadata: $metadata
             );
         }
@@ -91,6 +94,7 @@ final class DocumentContentFactory
                 $content,
                 $type,
                 $filename,
+                $extension,
                 $metadata
             );
         }
@@ -109,6 +113,7 @@ final class DocumentContentFactory
         string $binary,
         string $type,
         string $filename,
+        string  $extension,
         array $metadata
     ): DocumentContent {
         $binaryLength = strlen($binary);
@@ -123,6 +128,7 @@ final class DocumentContentFactory
                 content: $binary,
                 type: $type,
                 filename: $filename,
+                extension: $extension,
                 metadata: $metadata
             );
         }
@@ -157,6 +163,7 @@ final class DocumentContentFactory
             size: $binaryLength,
             type: $type,
             filename: $filename,
+            extension: $extension,
             metadata: $metadata
         );
     }

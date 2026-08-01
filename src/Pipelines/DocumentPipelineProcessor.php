@@ -55,10 +55,10 @@ final class DocumentPipelineProcessor implements DocumentPipeline
         Stages\EnterContextStage::class,
 
         Stages\ResolveContextStage::class,
+        Stages\ConfigureEngineStage::class,
 
         Stages\CompileDriverStage::class,
 
-        Stages\ConfigureEngineStage::class,
 
 
         Stages\ResolveSourceStage::class,

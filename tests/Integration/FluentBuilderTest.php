@@ -17,7 +17,6 @@ it('builds documents using a sleek fluent api profile design syntax', function (
         ->fromCollection(collect($students))
         ->view('students')
         ->context(['tenant_id' => 'emma', 'school_id' => 'emma-4353', 'user_id' => 263])
-        ->engine('mpdf')
         ->filename('fluent_transcript_report')
         ->save();
 
