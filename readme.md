@@ -1,664 +1,226 @@
-# Unnovate Brains Document Builder
+# Unnovate Brains — Document Builder
 
-## Architecture & Development Plan
+Comprehensive documentation, examples, and API usage for the Document Builder package.
 
-Version: 0.1 Design Specification
-
----
-
-# Overview
-
-**Document Builder** is a Laravel-friendly document processing framework designed to generate, process, and deliver different document formats through a unified and extensible API.
-
-The goal is not to create a simple PDF generator. The goal is to create a **document execution framework** where developers define what document they want, and the framework manages the execution pipeline.
-
-Supported document types:
-
-* PDF
-* Word
-* Excel
-* CSV
-
-Future possibilities:
-
-* Images
-* Presentations
-* Digital signatures
-* Document encryption
-* Watermarks
-* Templates
-* Document workflows
+This package provides a driver-based, contract-first document execution framework. Use the fluent Document facade to build an execution plan and run the document pipeline (render, store, merge, queue, etc.). The core is Laravel-friendly (uses a facade and service provider) but stays decoupled via contracts.
 
 ---
 
-# Core Philosophy
+## Quick links
 
-A document is not a file.
+- Full HTML documentation: [docs/documentation.html](E:/dev-server/www/packages/document-builder/docs/documentation.html)
+- Source: [DocumentBuilder class](E:/dev-server/www/packages/document-builder/src/DocumentBuilder.php)
+- Facade: [Document](E:/dev-server/www/packages/document-builder/src/Facades/Document.php)
+- Manager: [DocumentManager](E:/dev-server/www/packages/document-builder/src/DocumentManager.php)
 
-A document is an execution definition.
+---
 
-Example:
+## Installation
+
+Install via Composer inside your application:
+
+```bash
+composer require unnovatebrains/document-builder
+```
+
+If using Laravel, the package provides a service provider — it may be auto-discovered. Publish configuration when available.
+
+---
+
+## Overview / Concepts
+
+- Document facade (Document) produces a fluent, immutable DocumentBuilder for a document type (pdf, xlsx, csv, docx, html, image).
+- DocumentBuilder collects options and compiles an immutable ExecutionPlan.
+- DocumentManager executes the plan via pipeline processors, drivers, and storage.
+- Drivers implement format-specific rendering (mPDF, Chrome, TCPDF, PHPWord, PhpSpreadsheet, native CSV, etc.).
+- Storage and queue are abstracted by contracts so implementations can vary (local, S3, MinIO, Laravel Queue, Redis, SQS).
+
+---
+
+## Public API — Basic usage
+
+The package exposes the Document facade. Create builders for different types:
+
+- Document::pdf()
+- Document::excel()
+- Document::csv()
+- Document::word()
+- Document::html()
+- Document::image()
+
+Example — build and save a PDF synchronously:
 
 ```php
-Document::pdf()
+use UnnovateBrains\DocumentBuilder\Facades\Document;
+
+$result = Document::pdf()
     ->fromCollection($students)
     ->view('reports.students')
-    ->engine('mpdf')
-    ->chunk(100)
-    ->merge()
-    ->queue()
-    ->dispatch();
-```
-
-The developer describes:
-
-* What data to use
-* How to present it
-* Which format to generate
-* Which engine to use
-* How to process it
-* Where to deliver it
-
-The framework handles execution.
-
----
-
-# Package Identity
-
-Package:
-
-```
-unnovatebrains/document-builder
-```
-
-Namespace:
-
-```
-UnnovateBrains\DocumentBuilder
-```
-
-Repository:
-
-```
-UnnovateBrains/document-builder
-```
-
----
-
-# Design Goals
-
-The package must support:
-
-## Document Formats
-
-* PDF
-* Word
-* Excel
-* CSV
-
-## Rendering Engines
-
-Example:
-
-PDF:
-
-* mPDF
-* Chrome PDF
-* TCPDF
-
-Word:
-
-* PHPWord
-
-Excel:
-
-* PhpSpreadsheet
-
-CSV:
-
-* Native CSV writer
-
-## Processing
-
-* Synchronous execution
-* Queue execution
-* Chunk processing
-* Document merging
-* Storage handling
-* Status tracking
-
-## Integrations
-
-The package should support:
-
-* Laravel applications
-* SchoolPalm SaaS
-* Multi-tenant applications
-* Normal single-tenant applications
-
----
-
-# High-Level Architecture
-
-```
-Document Builder
-
-        |
-        |
-
-Execution Plan
-
-        |
-        |
-
-Pipeline
-
-        |
-        |
-
-Document Type Driver
-
-        |
-        |
-
-Rendering Engine
-
-        |
-        |
-
-Storage
-
-        |
-        |
-
-Document Result
-```
-
----
-
-# Core Components
-
-## 1. Document Builder
-
-Responsible for creating the document definition.
-
-Example:
-
-```php
-Document::pdf()
-```
-
-The builder collects configuration:
-
-* document type
-* engine
-* data source
-* view
-* processing options
-* storage
-* queue mode
-
-The builder does not generate immediately.
-
----
-
-# 2. Execution Plan
-
-The builder creates an immutable execution plan.
-
-Example:
-
-```
-Document Plan
-
-type:
-    pdf
-
-engine:
-    mpdf
-
-source:
-    students collection
-
-view:
-    reports.students
-
-chunk:
-    100
-
-merge:
-    true
-
-queue:
-    true
-```
-
-The pipeline executes this plan.
-
----
-
-# 3. Pipeline
-
-The pipeline manages document execution.
-
-Flow:
-
-```
-Request
-
- ↓
-
-Create Execution Plan
-
- ↓
-
-Resolve Context
-
- ↓
-
-Load Data Source
-
- ↓
-
-Transform Data
-
- ↓
-
-Render Template
-
- ↓
-
-Execute Document Engine
-
- ↓
-
-Store Result
-
- ↓
-
-Return Document Result
-```
-
----
-
-# Context System
-
-Context is optional.
-
-The framework should work without tenancy.
-
-However, applications like SchoolPalm need:
-
-* Tenant
-* School
-* User
-
-The package must use contracts, not direct dependencies.
-
-The package must NOT know:
-
-* Stancl Tenancy
-* SchoolPalm models
-* Application database structure
-
-Example:
-
-```
-Document Builder
-
-        |
-
-Context Contract
-
-        |
-
-Application Adapter
-
-        |
-
-SchoolPalm ContextHost
-```
-
----
-
-# Storage System
-
-Documents require storage.
-
-Storage responsibilities:
-
-* temporary files
-* generated documents
-* chunks
-* merged files
-
-The package must not know:
-
-* Local storage
-* Amazon S3
-* Azure
-* MinIO
-
-It uses a storage abstraction.
-
-Example:
-
-```
-Document Builder
-
-        |
-
-Storage Contract
-
-        |
-
-Storage Implementation
-```
-
-SchoolPalm can provide:
-
-```
-StorageHostService
-```
-
-which manages:
-
-```
-tenants/{tenant}/schools/{school}/documents
-```
-
----
-
-# Queue System
-
-Queue execution is optional.
-
-Example:
-
-```php
-Document::pdf()
-    ->queue()
-    ->dispatch();
-```
-
-The package only defines:
-
-```
-Queue Contract
-```
-
-The implementation can be:
-
-* Laravel Queue
-* Redis
-* SQS
-* Database queue
-
----
-
-# Document Types
-
-The first version is one package.
-
-```
-unnovatebrains/document-builder
-```
-
-contains:
-
-```
-Core
-
-PDF
-
-Word
-
-Excel
-
-CSV
-```
-
-Example:
-
-```
-src/
-
-Drivers/
-
-    Pdf/
-
-        MpdfDriver
-
-        ChromeDriver
-
-        TcpdfDriver
-
-
-    Word/
-
-        PhpWordDriver
-
-
-    Excel/
-
-        SpreadsheetDriver
-
-
-    Csv/
-
-        CsvDriver
-```
-
----
-
-# Future Package Splitting
-
-The package should be designed so splitting is possible later.
-
-Initial:
-
-```
-unnovatebrains/document-builder
-
-    Core
-    PDF
-    Word
-    Excel
-    CSV
-```
-
-Future:
-
-```
-unnovatebrains/document-builder
-
-    Core
-
-
-unnovatebrains/document-builder-pdf
-
-
-unnovatebrains/document-builder-word
-
-
-unnovatebrains/document-builder-excel
-```
-
-However:
-
-## Do not split before necessary.
-
-Reasons:
-
-* Easier maintenance
-* One documentation source
-* One release cycle
-* Easier adoption
-* Easier contribution
-
-The architecture must allow future separation without changing the public API.
-
----
-
-# Driver System
-
-The framework must use drivers.
-
-The core must not contain hard-coded logic:
-
-Bad:
-
-```
-if type == pdf
-    use mPDF
-```
-
-Good:
-
-```
-Document Type
-
-        |
-
-Driver Registry
-
-        |
-
-Registered Driver
-```
-
-Example:
-
-```
-PDF Driver
-
-supports:
-
-    mPDF
-
-    Chrome
-
-    TCPDF
-```
-
----
-
-# Public API Vision
-
-PDF:
-
-```php
-Document::pdf()
-    ->fromCollection($students)
-    ->view('reports.students')
-    ->engine('mpdf')
+    ->engine('mpdf') // optional: overrides configured default
+    ->filename('students-report.pdf')
     ->save();
+
+// $result is a DocumentResult-like object with metadata/getContent/getFilename methods
 ```
 
-Word:
+Stream download (HTTP response):
 
 ```php
-Document::word()
+return Document::pdf()
+    ->fromCollection($students)
+    ->view('reports.students')
+    ->download();
+```
+
+Inline stream (open in browser):
+
+```php
+return Document::pdf()
+    ->fromCollection($students)
+    ->view('reports.students')
+    ->stream();
+```
+
+Dispatch to queue (create a job and dispatch):
+
+```php
+Document::pdf()
+    ->fromCollection($students)
+    ->view('reports.students')
+    ->chunk(200)
+    ->merge(true)
+    ->queue()
+    ->dispatch();
+```
+
+---
+
+## Public API — Builder methods (reference)
+
+These methods are available on DocumentBuilder (fluent, immutable — each call returns a cloned instance):
+
+- engine(string $engine): Set the driver engine (e.g., 'mpdf', 'chrome').
+- option(string $key, mixed $value) / options(array $options): Pass generic options consumed by the pipeline/driver.
+- context(array $context) / withContext(string $key, mixed $value): Attach execution context (tenant, school, user, locale, timezone, etc.).
+- view(string $view, array $data = []): Template/view name and initial data for rendering.
+- templateEngine(string $engine): Template renderer for views ('blade', 'twig', ...).
+- fromArray(array $data), fromCollection(Collection $collection), fromQuery(string $model), fromModel(Model $model), fromJson(string $json), fromSource(Source $source): Set the document data source.
+- tenant(mixed $tenant), school(mixed $school), academicYear(mixed $year), term(mixed $term), user(mixed $user): Common context helpers.
+- locale(string $locale), timezone(string $timezone): Context helpers.
+- metadata(array|DocumentMetadata $metadata): Inject metadata.
+- filename(string $filename): Set output filename.
+- chunk(int $size): Enable chunking (creates multiple artifacts). Automatically sets merge unless overridden.
+- merge(bool $merge = true): Force merge behavior for chunked outputs.
+- queue(): Force queue execution.
+- sync() / withoutQueue(): Force synchronous execution.
+- transform(callable|DocumentTransformer $transformer): Add a transformer to modify data before rendering.
+- driverConfig(array $config), setDriverOption(string $driver, string $key, mixed $value), setDriverOptions(string $driver, array $options): Configure engine-specific settings.
+- saveTo(string $path): Set output path on the configured storage disk.
+
+Terminal actions (execute or enqueue):
+- save(): Execute generation (sync or background depending on decision) and return a result or queued job descriptor.
+- download(): Stream a download HTTP response (sync).
+- stream(): Stream inline HTTP response (sync).
+- dispatch(): Force job creation and dispatch via DocumentManager.
+
+See the implementation: [src/DocumentBuilder.php](E:/dev-server/www/packages/document-builder/src/DocumentBuilder.php)
+
+---
+
+## Examples — practical patterns
+
+1) Generate a single PDF and return for download
+
+```php
+return Document::pdf()
     ->fromModel($invoice)
-    ->view('invoice')
+    ->view('documents.invoice', ['includeTotals' => true])
+    ->filename("invoice-{$invoice->id}.pdf")
+    ->download();
+```
+
+2) Generate many PDFs in chunks and merge into one final file (queued)
+
+```php
+Document::pdf()
+    ->fromQuery(App\Models\Student::class)
+    ->view('reports.student-list')
+    ->chunk(250)
+    ->merge(true)
+    ->filename('students-full.pdf')
+    ->queue()
+    ->dispatch();
+```
+
+3) Create an Excel workbook from a query and save to a storage path
+
+```php
+$result = Document::excel()
+    ->fromQuery(App\Models\Student::class)
+    ->setDriverOptions('xlsx', ['auto_size' => true, 'creator' => 'SchoolPalm'])
+    ->filename('students.xlsx')
+    ->saveTo('reports/2026/')
+    ->save();
+
+// Inspect $result->getPath() or $result->getFilename() depending on the implementation
+```
+
+4) Generate a CSV from an array and return the result
+
+```php
+$csv = Document::csv()
+    ->fromArray([['name'=>'Alice','score'=>92], ['name'=>'Bob','score'=>85]])
+    ->filename('scores.csv')
     ->save();
 ```
 
-Excel:
+5) Use transformers to normalize data before rendering
 
 ```php
-Document::excel()
-    ->fromQuery(Student::query())
-    ->save();
-```
-
-CSV:
-
-```php
-Document::csv()
+Document::pdf()
     ->fromCollection($students)
+    ->transform(function($row) {
+        $row['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
+        return $row;
+    })
+    ->view('reports.students')
     ->save();
 ```
 
 ---
 
-# Development Roadmap
+## Advanced topics
 
-## Phase 1 - Core Framework
-
-Build:
-
-* package structure
-* service provider
-* facade
-* document manager
-* builder
-* execution plan
-* contracts
-
-## Phase 2 - Pipeline
-
-Build:
-
-* source handling
-* rendering pipeline
-* result handling
-
-## Phase 3 - Storage
-
-Build:
-
-* local storage adapter
-* storage contracts
-
-## Phase 4 - Queue
-
-Build:
-
-* queue contracts
-* document jobs
-* async execution
-
-## Phase 5 - Document Drivers
-
-Add:
-
-* PDF
-* Word
-* Excel
-* CSV
-
-## Phase 6 - Advanced Features
-
-Add:
-
-* progress tracking
-* events
-* webhooks
-* audit logs
-* encryption
-* permissions
-* templates
+- Driver configuration: Use driverConfig/setDriverOption(s) to pass engine-specific options (paper size, orientation, PDF margins, PhpSpreadsheet options, etc.).
+- Sources: Register custom sources via DocumentBuilder::registerSource(
+  string $type, string $sourceClass) to support special data providers.
+- Context and multi-tenancy: Supply tenant/school/user via ->tenant(), ->school(), ->user() or ->context([...]) to let host services restore the execution environment during queued jobs. See [important.md](E:/dev-server/www/packages/document-builder/important.md) for examples integrating with context jobs.
 
 ---
 
-# Important Rules
+## Testing and examples
 
-1. Core package must remain framework-independent.
-2. No direct SchoolPalm dependency.
-3. No direct tenancy dependency.
-4. No hard-coded storage.
-5. No hard-coded queue system.
-6. Document types use drivers.
-7. Public API should remain stable.
-8. Split packages only when real problems appear.
+This repository includes tests and example driver docs under `src/Drivers` and `tests/` which show more usage patterns (image API, integration flows). Explore:
+
+- [src/Drivers/Image/readme.md](E:/dev-server/www/packages/document-builder/src/Drivers/Image/readme.md)
+- [tests/Integration](E:/dev-server/www/packages/document-builder/tests/Integration)
 
 ---
 
-# Final Vision
+## Contributing
 
-Unnovate Brains Document Builder should become a reusable document processing framework that powers SchoolPalm while remaining useful for other Laravel applications.
+Contributions welcome. Open an issue for design discussions. When contributing:
 
-The goal is not only document generation.
+- Keep the core package independent and rely on contracts.
+- Add tests for new drivers and pipeline changes.
+- Update README and docs for public API changes.
 
-The goal is a complete document execution platform.
+---
+
+## License
+
+Specify license (e.g., MIT) when publishing. If private, document internal usage guidelines.
+
+---
+
+If you want specific API examples converted into copy-paste-ready code that integrates with your application (service provider registration, config keys, full controller examples), tell me which integration point to document and I'll add it.
