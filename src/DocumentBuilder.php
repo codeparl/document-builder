@@ -67,13 +67,13 @@ class DocumentBuilder
      * Example:
      *
      * [
-     *     'pdf' => [
-     *          'orientation' => 'landscape'
-     *     ],
+     *    'pdf' => [
+     *         'orientation' => 'landscape'
+     *    ],
      *
-     *     'xlsx' => [
-     *          'auto_size' => true
-     *     ]
+     *    'xlsx' => [
+     *         'auto_size' => true
+     *    ]
      * ]
      */
     protected array $driverConfig = [];
@@ -560,16 +560,56 @@ class DocumentBuilder
     }
 
     /**
+     * Resolve appropriate Content-Type header based on document type.
+     */
+    protected function resolveContentType(string $type, string $extension): string
+    {
+        return match (strtolower($type)) {
+            'pdf' => 'application/pdf',
+            'xlsx', 'excel', 'xls' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'csv' => 'text/csv',
+            'docx', 'word', 'doc' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'html', 'htm' => 'text/html',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'avif' => 'image/avif',
+            'bmp' => 'image/bmp',
+            'tiff', 'tif' => 'image/tiff',
+            'image' => match (strtolower($extension)) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'webp' => 'image/webp',
+                'gif' => 'image/gif',
+                'avif' => 'image/avif',
+                'bmp' => 'image/bmp',
+                'tiff', 'tif' => 'image/tiff',
+                default => 'image/png',
+            },
+            default => 'application/octet-stream',
+        };
+    }
+
+    /**
      * Terminal action: Processes the document and fires a native HTTP user download stream.
      */
     public function download(): \Symfony\Component\HttpFoundation\Response
     {
         $result = $this->sync()->save();
+        $content = $result->getContent();
+        $filename = $result->getFilename();
+        $contentType = $this->resolveContentType($result->getType(), $result->getExtension());
 
-        return response()->streamDownload(function () use ($result) {
-            echo $result->getContent();
-        }, $result->getFilename(), [
-            'Content-Type' => 'application/pdf',
+        return response()->streamDownload(function () use ($content) {
+            $content->writeTo(function ($stream) {
+                while (!feof($stream)) {
+                    echo fread($stream, 8192);
+                    flush();
+                }
+            });
+        }, $filename, [
+            'Content-Type' => $contentType,
         ]);
     }
 
@@ -579,10 +619,20 @@ class DocumentBuilder
     public function stream(): \Symfony\Component\HttpFoundation\Response
     {
         $result = $this->sync()->save();
+        $content = $result->getContent();
+        $filename = $result->getFilename();
+        $contentType = $this->resolveContentType($result->getType(), $result->getExtension());
 
-        return response($result->getContent(), 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . $result->getFilename() . '"',
+        return response()->stream(function () use ($content) {
+            $content->writeTo(function ($stream) {
+                while (!feof($stream)) {
+                    echo fread($stream, 8192);
+                    flush();
+                }
+            });
+        }, 200, [
+            'Content-Type' => $contentType,
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
         ]);
     }
 
