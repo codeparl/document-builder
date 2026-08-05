@@ -591,49 +591,90 @@ class DocumentBuilder
         };
     }
 
+
+
     /**
      * Terminal action: Processes the document and fires a native HTTP user download stream.
      */
-    public function download(): \Symfony\Component\HttpFoundation\Response
+    /**
+     * Terminal action: Processes the document and fires a native HTTP user download stream.
+     */
+    public function download(bool $deleteAfter = true): \UnnovateBrains\DocumentBuilder\Support\DocumentResponse
     {
         $result = $this->sync()->save();
         $content = $result->getContent();
         $filename = $result->getFilename();
         $contentType = $this->resolveContentType($result->getType(), $result->getExtension());
 
-        return response()->streamDownload(function () use ($content) {
+        $path = method_exists($result, 'getPath') ? $result->getPath() : null;
+        $disk = method_exists($result, 'getDisk') ? $result->getDisk() : ($this->disk ?? 'local');
+
+        $callback = function () use ($content) {
             $content->writeTo(function ($stream) {
                 while (!feof($stream)) {
                     echo fread($stream, 8192);
                     flush();
                 }
             });
-        }, $filename, [
-            'Content-Type' => $contentType,
-        ]);
+        };
+
+        $response = new \UnnovateBrains\DocumentBuilder\Support\DocumentResponse(
+            callback: $callback,
+            status: 200,
+            headers: ['Content-Type' => $contentType],
+            filename: $filename,
+            isAttachment: true,
+            storagePath: $path,
+            disk: $disk
+        );
+
+        if ($deleteAfter) {
+            $response->deleteAfter();
+        }
+
+        return $response;
     }
 
     /**
      * Terminal action: Processes the document and streams raw inline binaries straight back to the viewport.
      */
-    public function stream(): \Symfony\Component\HttpFoundation\Response
+    public function stream(bool $deleteAfter = true): \UnnovateBrains\DocumentBuilder\Support\DocumentResponse
     {
         $result = $this->sync()->save();
         $content = $result->getContent();
         $filename = $result->getFilename();
         $contentType = $this->resolveContentType($result->getType(), $result->getExtension());
 
-        return response()->stream(function () use ($content) {
+        $path = method_exists($result, 'getPath') ? $result->getPath() : null;
+        $disk = method_exists($result, 'getDisk') ? $result->getDisk() : ($this->disk ?? 'local');
+
+        $callback = function () use ($content) {
             $content->writeTo(function ($stream) {
                 while (!feof($stream)) {
                     echo fread($stream, 8192);
                     flush();
                 }
             });
-        }, 200, [
-            'Content-Type' => $contentType,
-            'Content-Disposition' => 'inline; filename="' . $filename . '"',
-        ]);
+        };
+
+        $response = new \UnnovateBrains\DocumentBuilder\Support\DocumentResponse(
+            callback: $callback,
+            status: 200,
+            headers: [
+                'Content-Type' => $contentType,
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            ],
+            filename: $filename,
+            isAttachment: false,
+            storagePath: $path,
+            disk: $disk
+        );
+
+        if ($deleteAfter) {
+            $response->deleteAfter();
+        }
+
+        return $response;
     }
 
     /**
