@@ -107,6 +107,14 @@ final class DocumentResult implements DocumentExecutionResult
     }
 
 
+    public function getExtension(): string
+    {
+        if (method_exists($this->content, 'getExtension')) {
+            return $this->content->getExtension();
+        }
+        return '';
+    }
+
     /**
      * Document format type.
      *
