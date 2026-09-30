@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace UnnovateBrains\DocumentBuilder\Concerns;
 
+use Illuminate\Support\Str;
+
 trait ImageBuilderTrait
 {
 
@@ -519,6 +521,9 @@ trait ImageBuilderTrait
     public function convert(
         string $type
     ): self {
+
+
+        $this->outputPath  =  Str::beforeLast($this->outputPath, '.') . '.' . $type;
 
         return $this->setDriverOption(
             'image',

@@ -43,6 +43,21 @@ final class LaravelDocumentStorage implements DocumentStorage
         );
     }
 
+  
+public function forDisk(string $disk): self
+{
+    // Validate that the requested disk exists and can be resolved.
+    $this->storageFactory->disk($disk);
+
+    return new self(
+        $this->storageFactory,
+        $this->pathResolver,
+        $disk
+    );
+}
+
+
+
     /**
      * @inheritDoc
      */

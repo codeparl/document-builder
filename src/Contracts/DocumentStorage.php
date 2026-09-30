@@ -33,6 +33,17 @@ interface DocumentStorage
      */
     public function forContext(?string $tenantId, ?string $schoolId): self;
 
+
+    /**
+ * Scopes the storage instance to a specific Laravel filesystem disk.
+ *
+ * Preserves the existing tenant and school context.
+ *
+ * @param string $disk The configured Laravel filesystem disk name.
+ * @return self Returns a new storage instance using the selected disk.
+ */
+public function forDisk(string $disk): self;
+
     /**
      * Writes contents to a file at the specified relative path.
      * The path will be automatically resolved to the current tenant/school context.

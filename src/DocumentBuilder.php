@@ -18,6 +18,7 @@ use UnnovateBrains\DocumentBuilder\Support\DocumentMetadata;
 use UnnovateBrains\DocumentBuilder\Support\DocumentResult;
 use UnnovateBrains\DocumentBuilder\Support\ExecutionPlan;
 use UnnovateBrains\DocumentBuilder\Support\SourceRegistry;
+use Illuminate\Support\Str;
 
 /**
  * Class DocumentBuilder
@@ -314,7 +315,12 @@ class DocumentBuilder
     {
         $clone = clone $this;
         $clone->filename = $filename;
-        return $clone;
+
+
+        if (str_contains($filename, '.') && Str::afterLast($filename, '.') !== $this->type)
+            $clone->filename = Str::beforeLast($filename, '.') . '.' . $this->type;
+
+        return $this->saveTo($clone->filename);
     }
 
 

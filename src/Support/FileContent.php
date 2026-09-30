@@ -7,16 +7,17 @@ namespace UnnovateBrains\DocumentBuilder\Support;
 use RuntimeException;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentContent;
 use UnnovateBrains\DocumentBuilder\Contracts\DocumentStorage;
+use Illuminate\Support\Str;
 
 final class FileContent implements DocumentContent
 {
     private readonly string $type;
 
-    private readonly string $filename;
+    private  string $filename;
 
 
     public function __construct(
-        private readonly string $path,
+        private  string $path,
 
         ?string $type = null,
 
@@ -38,10 +39,12 @@ final class FileContent implements DocumentContent
             ?? $extension
             ?? 'pdf';
 
+        $this->path =  Str::beforeLast($this->path, '.') . '.' . $extension;
 
         $this->filename =
             $filename
-            ?? basename($path);
+            ?? basename($this->path);
+        $this->filename = Str::beforeLast($this->filename, '.') . '.' . $extension;
     }
 
 
