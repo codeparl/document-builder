@@ -5,146 +5,113 @@ declare(strict_types=1);
 namespace UnnovateBrains\DocumentBuilder\Contracts;
 
 /**
- * Interface DocumentStorage
- * Serves as the primary entry point for all filesystem operations within the Document Builder.
- * It abstracts the underlying storage mechanism (Local, S3, etc.) and provides methods for both 
- * general file management and isolated batch execution workspaces.
+ * Tenant-scoped, disk-agnostic document storage.
+ *
+ * All paths accepted by this interface are **storage-relative**. They are
+ * resolved internally against the active tenant/school context and disk.
+ * Callers MUST NOT pass pre-resolved paths.
+ *
+ * Implementations MUST be immutable with respect to context: forContext()
+ * and forDisk() return new instances and never mutate the receiver.
+ *
+ * Implementations MUST be streaming-capable: readStream(), writeStream(),
+ * putFromPath() and copyToPath() are required. Any adapter that cannot
+ * honour them cannot satisfy this contract.
  */
 interface DocumentStorage
 {
+    // ---------------------------------------------------------------- context
+
+    public function forContext(?string $tenantId, ?string $schoolId): static;
+
+    public function forDisk(string $disk): static;
+
+    public function currentDisk(): string;
+
+    // -------------------------------------------------------------- metadata
+
+    public function exists(string $path): bool;
+
+    public function size(string $path): ?int;
+
+    // ---------------------------------------------------------------- read
+
     /**
-     * Initializes an isolated storage workspace for a specific document generation batch.
-     * This workspace abstracts away all path-building logic (e.g., chunks, manifests, rendered PDFs)
-     * so that the pipeline queue workers do not need to manage directory structures.
+     * Read the entire file into memory.
      *
-     * @param string $batchUuid The unique identifier for the document execution batch.
-     * @return StorageWorkspaceInterface
-     */
-    public function batchWorkspace(string $batchUuid): StorageWorkspaceInterface;
-
-    /**
-     * Scopes the storage instance to a specific tenant and/or school context.
-     * This is critical for queue workers or CLI commands where the contextual 
-     * session (like an HTTP request) might not be automatically available.
-     *
-     * @param string|null $tenantId The unique identifier of the tenant.
-     * @param string|null $schoolId The unique identifier of the school.
-     * @return self Returns a cloned instance with the applied context.
-     */
-    public function forContext(?string $tenantId, ?string $schoolId): self;
-
-
-    /**
- * Scopes the storage instance to a specific Laravel filesystem disk.
- *
- * Preserves the existing tenant and school context.
- *
- * @param string $disk The configured Laravel filesystem disk name.
- * @return self Returns a new storage instance using the selected disk.
- */
-public function forDisk(string $disk): self;
-
-    /**
-     * Writes contents to a file at the specified relative path.
-     * The path will be automatically resolved to the current tenant/school context.
-     *
-     * @param string $path The relative destination path (e.g., 'reports/final.pdf').
-     * @param mixed $contents The file contents (string, stream, or binary data).
-     * @return string The fully resolved path where the file was stored.
-     */
-    public function put(string $path, mixed $contents): string;
-
-    /**
-     * Retrieves the contents of a file at the specified relative path.
-     *
-     * @param string $path The relative path of the file to retrieve.
-     * @return string The raw contents of the file.
-     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException If the file does not exist.
+     * Convenience wrapper. Prefer readStream() for anything that may exceed
+     * a few MB. Throws when the file does not exist.
      */
     public function get(string $path): string;
 
     /**
-     * Checks if a file exists at the specified relative path.
+     * Open a read stream. The caller owns the stream and MUST close it.
      *
-     * @param string $path The relative path to check.
-     * @return bool True if the file exists, false otherwise.
+     * @return resource
      */
-    public function exists(string $path): bool;
+    public function readStream(string $path): mixed;
+
+    // --------------------------------------------------------------- write
 
     /**
-     * Deletes a file at the specified relative path.
+     * Store the given contents, replacing any existing file.
      *
-     * @param string $path The relative path of the file to delete.
-     * @return bool True on success, false on failure.
+     * Convenience wrapper. Prefer writeStream() for large payloads.
+     * The $path is storage-relative and round-trips through exists()/get().
      */
+    public function put(string $path, mixed $contents): void;
+
+    /**
+     * Write from a caller-owned readable stream. The caller retains
+     * ownership of the stream and is responsible for closing it.
+     *
+     * @param resource $stream
+     */
+    public function writeStream(string $path, mixed $stream): void;
+
+    /**
+     * Upload a local file by path. Must stream — never load the file into
+     * memory as a string.
+     */
+    public function putFromPath(string $path, string $localPath): void;
+
+    /**
+     * Stream a stored file down to a local path. Must stream — never
+     * materialize the file as a string.
+     */
+    public function copyToPath(string $path, string $localPath): void;
+
+    // -------------------------------------------------------------- delete
+
     public function delete(string $path): bool;
 
-    /**
-     * Deletes a directory and all of its contents at the specified relative path.
-     * The path will be automatically resolved to the current tenant/school context.
-     *
-     * @param string $directory The relative path of the directory to delete.
-     * @return bool True on success, false on failure.
-     */
     public function deleteDirectory(string $directory): bool;
 
-    /**
-     * Copies a file from one relative path to another.
-     *
-     * @param string $from The relative path of the source file.
-     * @param string $to The relative destination path.
-     * @return bool True on success, false on failure.
-     */
+    // ---------------------------------------------------------- copy / move
+
     public function copy(string $from, string $to): bool;
 
-    /**
-     * Moves (renames) a file from one relative path to another.
-     *
-     * @param string $from The relative path of the source file.
-     * @param string $to The relative destination path.
-     * @return bool True on success, false on failure.
-     */
     public function move(string $from, string $to): bool;
 
-    /**
-     * Retrieves a publicly accessible URL for the file, if supported by the underlying disk.
-     *
-     * @param string $path The relative path of the file.
-     * @return string|null The public URL, or null if the disk does not support public URLs.
-     */
+    // ---------------------------------------------------------------- urls
+
     public function publicUrl(string $path): ?string;
 
-
-    public function resolvePath(string $path): string;
-
-    public function putContent(
-        string $path,
-        DocumentContent $content
-    ): string;
+    // -------------------------------------------- document-builder extensions
 
     /**
-     * Return the physical filesystem path when supported.
+     * Initialize an isolated storage workspace for a document generation batch.
      */
-    public function physicalPath(
-        string $path
-    ): string;
+    public function batchWorkspace(string $batchUuid): StorageWorkspaceInterface;
 
     /**
-     * Read a stored document as a stream.
-     *
-     * Useful for large files without loading
-     * the whole file into memory.
+     * Write a DocumentContent payload to a path.
      */
-    public function readStream(
-        string $path
-    );
-
-
+    public function putContent(string $path, DocumentContent $content): void;
 
     /**
-     * Get stored document size in bytes.
+     * Return the physical filesystem path when the disk supports it, or
+     * null otherwise (e.g. S3).
      */
-    public function size(
-        string $path
-    ): ?int;
+    public function physicalPath(string $path): ?string;
 }
